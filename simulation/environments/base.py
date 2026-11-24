@@ -32,7 +32,19 @@ class Earthquake(Disaster):
     hazard = "debris"
 
 
+class Landslide(Disaster):
+    ground = "road"
+    hazard = "debris"
+
+
+class Cyclone(Disaster):
+    ground = "dry"
+    hazard = "water"
+
+
 REGISTRY: dict[str, type[Disaster]] = {
+    "landslide": Landslide,
+    "cyclone": Cyclone,
     "flood": Flood,
     "wildfire": Wildfire,
     "earthquake": Earthquake,

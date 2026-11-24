@@ -1,0 +1,6 @@
+{
+  "scenario_id": "command_conflict",
+  "disaster": "flood",
+  "noise": 0.4,
+  "false_positive": 0.2
+}

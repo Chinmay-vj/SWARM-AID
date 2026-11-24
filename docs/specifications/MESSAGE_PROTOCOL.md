@@ -38,3 +38,9 @@ A drone detects command silence using acknowledgements to its periodic heartbeat
 ## Phase 4 extension
 
 MissionUpdate requires schema version 1.1. Existing v1.0 payloads remain accepted. See the [communication protocol guide](../communication/MESSAGE_PROTOCOL_GUIDE.md) for channel mappings and simulated delivery semantics.
+
+## Phase 6 command messages
+
+Version 1.2 adds forwarded_report from command to the operator and human_incident_review from the operator to command. A forwarded report carries the original reporter and a ReportedFinding with message ID and source evidence. A human incident review requires an incident ID, expected revision, action, reason and envelope expiry. The command consumer applies the operator identity and revision checks. Version 1.0 and 1.1 retain their existing payloads.
+
+Version 1.2 also defines command_alert for the command-to-human channel. Its update carries the incident and optional recommendation. The wrapper adds review state, reported location, urgency category, reason and supporting evidence IDs. Envelope message_id and sent_ms identify and timestamp the alert. The same exclusive recommendation deadline and incident revision checks apply inside the wrapper.

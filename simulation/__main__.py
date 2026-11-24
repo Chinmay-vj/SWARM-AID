@@ -2,6 +2,7 @@ import argparse
 import json
 from pathlib import Path
 
+from agents.command_agent.agent import Settings as CommandSettings
 from evaluation.results import export, metrics
 from simulation.adapters.coordination import sector_cells
 from simulation.adapters.model1 import Fleet
@@ -29,7 +30,16 @@ def main() -> None:
     parser.add_argument(
         "--coordination", choices=["independent", "fixed_sector", "shared_information"]
     )
+    parser.add_argument("--command-agent", action="store_true")
+    parser.add_argument("--command-config", type=Path)
     args = parser.parse_args()
+    command = (
+        CommandSettings.model_validate_json(args.command_config.read_bytes())
+        if args.command_config
+        else CommandSettings()
+        if args.command_agent
+        else None
+    )
     data = load(args.scenario).model_dump()
     for key in ("agents", "seed"):
         if getattr(args, key) is not None:
@@ -38,9 +48,13 @@ def main() -> None:
 
     fleet = (
         Fleet(
-            e, args.agent_config, communication=args.communication, coordination=args.coordination
+            e,
+            args.agent_config,
+            communication=args.communication,
+            command=command,
+            coordination=args.coordination,
         )
-        if args.policy == "model1" or args.communication or args.coordination
+        if args.policy == "model1" or args.communication or args.coordination or command
         else None
     )
 
@@ -79,6 +93,7 @@ def main() -> None:
                                     e,
                                     args.agent_config,
                                     communication=args.communication,
+                                    command=command,
                                     coordination=args.coordination,
                                 )
                         if event.key == pygame.K_TAB:
@@ -128,6 +143,12 @@ def main() -> None:
     print(json.dumps(metrics(e)))
     if fleet and fleet.network:
         print(json.dumps(fleet.network.router.metrics()))
+    if fleet and fleet.command:
+        print(
+            json.dumps(
+                {"command": dict(fleet.command.counts), "incidents": len(fleet.command.incidents)}
+            )
+        )
     if args.output or e.config.logging:
         path = export(e, args.output or Path("runs"))
         if fleet and fleet.network:
@@ -146,6 +167,10 @@ def main() -> None:
                     indent=2,
                 ),
                 encoding="utf-8",
+            )
+        if fleet and fleet.command:
+            path.with_suffix(".command.json").write_text(
+                json.dumps(fleet.command.snapshot(), indent=2), encoding="utf-8"
             )
         print(path)
 

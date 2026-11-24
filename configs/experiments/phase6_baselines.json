@@ -1,0 +1,1 @@
+{"scenarios":["flood_basic","flood_multiple","flood_server_unavailable","wildfire_basic","earthquake_basic"],"agents":[3,6,10],"seeds":[42],"modes":["direct","rules","fusion"],"scripted_review":true}

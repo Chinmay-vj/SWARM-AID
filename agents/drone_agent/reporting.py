@@ -36,7 +36,12 @@ class Mailbox:
         seq = self.sequence.get(destination, 0)
         key = uuid5(self.session, f"{destination}/{seq}")
         msg = Envelope(
-            schema_version="1.1" if payload.message_type == "mission_update" else "1.0",
+            schema_version="1.2"
+            if payload.message_type
+            in ("forwarded_report", "human_incident_review", "command_alert")
+            else "1.1"
+            if payload.message_type == "mission_update"
+            else "1.0",
             message_id=key,
             mission_id=self.mission,
             source=self.owner,

@@ -88,3 +88,16 @@ From the repository root, use the Python environment installed with the dev and 
 ```
 
 The comparison runner writes one JSON per episode and CSV and JSON summaries under runs/phase5. Replace --headless with --render for the debug viewer. Orange outlines identify outstanding survey targets in the truth view. See the [coordination architecture](docs/coordination/COORDINATION_ARCHITECTURE.md) and [Phase 5 report](docs/PHASE_5_COMPLETION_REPORT.md).
+
+## Phase 6 command agent
+
+From the repository root in PowerShell with the dev and simulation extras installed:
+
+```powershell
+.\.venv\Scripts\python.exe -m simulation --command-agent --scenario flood_basic --agents 6 --seed 42 --headless --output runs/command
+.\.venv\Scripts\python.exe -m simulation --command-agent --coordination shared_information --scenario flood_multiple --agents 6 --seed 42 --headless --output runs/multiple
+.\.venv\Scripts\python.exe -m simulation --command-agent --coordination shared_information --scenario flood_server_unavailable --agents 6 --seed 42 --headless --output runs/outage
+.\.venv\Scripts\python.exe -m evaluation.command_agent_experiments --config configs/experiments/phase6_baselines.json
+```
+
+The CLI uses deterministic fusion by default. Direct forwarding and per-report assessment are available through command configuration and the experiment runner. See the [Model 2 implementation](docs/command_agent/MODEL_2_IMPLEMENTATION.md) and [Phase 6 report](docs/PHASE_6_COMPLETION_REPORT.md).

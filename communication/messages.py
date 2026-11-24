@@ -15,9 +15,24 @@ from agents.shared.domain import (
     Observation,
     Recommendation,
     Record,
+    ReportedFinding,
     Score,
     Tick,
 )
+
+
+class HumanIncidentReview(Record):
+    message_type: Literal["human_incident_review"]
+    incident_id: UUID
+    revision: Annotated[int, Field(strict=True, ge=1)]
+    action: Literal["correct", "prioritize", "resolve", "close"]
+    reason: Id
+
+
+class ForwardedReport(Record):
+    message_type: Literal["forwarded_report"]
+    reporter: Id
+    report: ReportedFinding
 
 
 class Registration(Record):
@@ -52,6 +67,16 @@ class IncidentUpdate(Record):
     message_type: Literal["incident_update"]
     incident: Incident
     recommendation: Recommendation | None = None
+
+
+class CommandAlert(Record):
+    message_type: Literal["command_alert"]
+    update: IncidentUpdate
+    priority: Literal["review_required", "elevated", "potentially_urgent"]
+    priority_reason: Id
+    supporting_evidence: Annotated[tuple[UUID, ...], Field(min_length=1)]
+    location: Cell | None
+    review_state: Id
 
 
 class EvidenceReference(Record):
@@ -143,13 +168,16 @@ Payload = Annotated[
     | HumanApproval
     | HumanOverride
     | ErrorReport
-    | MissionUpdate,
+    | MissionUpdate
+    | CommandAlert
+    | ForwardedReport
+    | HumanIncidentReview,
     Field(discriminator="message_type"),
 ]
 
 
 class Envelope(Record):
-    schema_version: Literal["1.0", "1.1"]
+    schema_version: Literal["1.0", "1.1", "1.2"]
     message_id: UUID
     source: Id
     destination: Id
@@ -165,12 +193,24 @@ class Envelope(Record):
 
     @model_validator(mode="after")
     def check_consistency(self) -> Self:
+        if isinstance(self.payload, CommandAlert) and self.schema_version != "1.2":
+            raise ValueError("command alert requires schema 1.2")
+        if isinstance(self.payload, HumanIncidentReview) and self.schema_version != "1.2":
+            raise ValueError("human incident review requires schema 1.2")
+        if isinstance(self.payload, ForwardedReport) and (
+            self.schema_version != "1.2"
+            or self.payload.report.finding.observation.observed_ms > self.sent_ms
+        ):
+            raise ValueError("invalid forwarded report version or observation time")
         if isinstance(self.payload, MissionUpdate) and self.schema_version != "1.1":
             raise ValueError("mission update requires schema 1.1")
         if self.expires_ms is not None and self.expires_ms <= self.sent_ms:
             raise ValueError("expiry must follow send time")
         if (
-            isinstance(self.payload, (MissionInstruction, HumanApproval, HumanOverride))
+            isinstance(
+                self.payload,
+                (MissionInstruction, HumanApproval, HumanOverride, HumanIncidentReview),
+            )
             and self.expires_ms is None
         ):
             raise ValueError("control messages require expiry")
@@ -193,11 +233,14 @@ class Envelope(Record):
             raise ValueError("evidence is later than send time")
         if isinstance(self.payload, ConnectionLoss) and self.payload.last_seen_ms > self.sent_ms:
             raise ValueError("last contact is later than send time")
-        if isinstance(self.payload, IncidentUpdate) and self.payload.recommendation:
-            rec = self.payload.recommendation
+        publication = (
+            self.payload.update if isinstance(self.payload, CommandAlert) else self.payload
+        )
+        if isinstance(publication, IncidentUpdate) and publication.recommendation:
+            rec = publication.recommendation
             if rec.expires_ms <= self.sent_ms:
                 raise ValueError("attached recommendation expired before publication")
-            inc = self.payload.incident
+            inc = publication.incident
             if (rec.incident_id, rec.incident_revision) != (inc.incident_id, inc.revision):
                 raise ValueError("recommendation must reference the attached revision")
         return self

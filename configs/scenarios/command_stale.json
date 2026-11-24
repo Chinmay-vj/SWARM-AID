@@ -1,0 +1,5 @@
+{
+  "scenario_id": "command_stale",
+  "disaster": "flood",
+  "delay": 18
+}

@@ -52,13 +52,20 @@ PERMISSIONS = {
     ("command", "drone"): {"acknowledgement", "mission_instruction", "error_report"},
     ("command", "human"): {
         "incident_update",
+        "forwarded_report",
+        "command_alert",
         "mission_update",
         "evidence_reference",
         "heartbeat",
         "acknowledgement",
         "error_report",
     },
-    ("human", "command"): {"human_approval", "human_override", "acknowledgement"},
+    ("human", "command"): {
+        "human_approval",
+        "human_override",
+        "human_incident_review",
+        "acknowledgement",
+    },
     ("human", "drone"): {"human_override"},
 }
 
@@ -275,6 +282,7 @@ class Router:
                     "mission_instruction",
                     "human_override",
                     "human_approval",
+                    "human_incident_review",
                 }
                 while rng.random() < self.loss:
                     self.event("dropped", principal, p.name, mid, "packet_loss")
