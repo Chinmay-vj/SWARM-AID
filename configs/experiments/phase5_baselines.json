@@ -1,0 +1,1 @@
+{"scenarios":["flood_basic"],"agents":[3,6,10],"seeds":[42,43],"policies":["independent","fixed_sector","shared_information"]}

@@ -11,3 +11,13 @@ dist/
 .env
 runs/
 node_modules/
+.env.*
+!.env.example
+*.pem
+*.key
+*.tmp
+*.safetensors
+*.pt
+*.pth
+datasets/**
+!datasets/.gitkeep

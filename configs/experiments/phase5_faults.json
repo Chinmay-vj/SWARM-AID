@@ -1,0 +1,1 @@
+{"scenarios":["flood_multiple","flood_agent_disconnected","flood_network_delay","flood_network_loss","flood_network_partition","flood_network_reorder","flood_network_duplicate","flood_server_unavailable","wildfire_basic","earthquake_basic"],"agents":[6],"seeds":[42],"policies":["shared_information"]}

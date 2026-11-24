@@ -42,6 +42,9 @@ class Scenario(Record):
     unavailable: tuple[int, ...] = ()
     hidden_people: bool = False
     moving_people: bool = False
+    assignment_ticks: PositiveInt = 6
+    sectors: dict[str, tuple[Cell, ...]] = Field(default_factory=dict)
+    mission_objective: str = "Survey authorized cells and report synthetic evidence"
     radio_range: NonNegativeInt = 5
     loss: Score = 0
     delay: PositiveInt = 1
@@ -59,6 +62,11 @@ class Scenario(Record):
 
         if self.disaster not in REGISTRY:
             raise ValueError("unknown disaster profile")
+        for member, sector in self.sectors.items():
+            if member not in {f"d{i}" for i in range(self.agents)} or not sector:
+                raise ValueError("invalid sector assignment")
+            if any(c.x >= self.width or c.y >= self.height for c in sector):
+                raise ValueError("sector outside grid")
         cells = [c for group in self.terrain.values() for c in group]
         if any(
             c.x >= self.width or c.y >= self.height for c in cells + [e.cell for e in self.events]

@@ -62,3 +62,11 @@ Medium: full-event retention and linear scheduling/dedup bookkeeping have no fle
 Low: symbolic confidence scores are uncalibrated. Replay evidence covers the tested configurations and environment. The experiment manifest requires external recording of the policy selection, provider/build versions and invocation for publication-grade reproduction. Protocol role checks assume trusted participants and cannot secure a hostile Python plugin.
 
 There is no outstanding blocker for finite, trusted Phase 5 development. No Phase 5 policy, training, service or deployment was implemented.
+
+## Follow-up repository review, 24 November 2026
+
+Reviewed revision `4e3d3b3` on Windows CPython 3.12.10. From the repository root, `pytest -q` passed 89 tests with two PettingZoo deprecation warnings, `ruff check .` passed, and `mypy --strict --no-incremental` passed across 40 source files. This follow-up exercised the local 3.12 environment only.
+
+- **Incorrect decision outcome for a blocked return.** In the default six-drone `flood_basic` fixture, enabling movement for `d0`, giving it a valid survey lease to base, and advancing the fleet once left it at (0, 0). Its decision log recorded `RETURN` and `applied`. The engine resolves return-to-base as a movement step, but the blocked-outcome check in `simulation/adapters/model1.py` only considers the four cardinal moves. Analyses using decision logs can therefore count a blocked return as successful.
+- **Incomplete run provenance.** The JSON record in `evaluation/results.py` stores the scenario and seed. Reproducing a run also requires the policy, communication switch and effective Model 1 settings. Those inputs currently need to be recorded separately.
+- **Phase numbering diverged.** The Phase 3 and 4 delivery reports cover the local drone and simulated transport. The same rows in the development roadmap describe command integration and the human interface. The command package is a placeholder and the backend, database and frontend directories contain scaffolding. The README core setup also calls the simulation extra reserved despite the executable simulator.

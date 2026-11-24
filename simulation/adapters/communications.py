@@ -12,7 +12,7 @@ from simulation.core.engine import Engine
 
 
 class SimulationNetwork:
-    def __init__(self, e: Engine):
+    def __init__(self, e: Engine, *, share_peers: bool = True):
         c = e.config
         self.router = Router(
             e.mission_id, c.network, e.seed, c.delay * c.tick_ms, c.loss, c.tick_ms
@@ -36,6 +36,8 @@ class SimulationNetwork:
         def link(a: str, b: str) -> bool:
             if a not in self.positions or b not in self.positions:
                 return True
+            if not share_peers:
+                return False
             x, y = self.positions[a]
             u, v = self.positions[b]
             return abs(x - u) + abs(y - v) <= c.radio_range and (

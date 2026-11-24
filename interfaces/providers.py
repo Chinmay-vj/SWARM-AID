@@ -2,8 +2,10 @@
 
 from typing import Protocol
 
+from agents.shared.coordination import MissionContext
 from agents.shared.domain import (
     Action,
+    Cell,
     Finding,
     Incident,
     Intent,
@@ -62,3 +64,9 @@ class RescueRecommendationProvider(Protocol):
     def recommend(
         self, incident: Incident, reports: tuple[ReportedFinding, ...]
     ) -> Recommendation: ...
+
+
+class CoordinationPolicy(Protocol):
+    def target(
+        self, mission: MissionContext, member: str, round_index: int, reported: frozenset[Cell]
+    ) -> Cell | None: ...

@@ -23,6 +23,8 @@ namespaces = false
 configs = ["*.toml","*.json", "scenarios/*.json"]
 
 [tool.pytest.ini_options]
+# Windows users sharing a checkout can have incompatible cache directory ACLs.
+addopts = "-p no:cacheprovider"
 testpaths = ["tests"]
 
 [tool.ruff]

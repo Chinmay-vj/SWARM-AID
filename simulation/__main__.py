@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from evaluation.results import export, metrics
+from simulation.adapters.coordination import sector_cells
 from simulation.adapters.model1 import Fleet
 from simulation.core.configuration import Scenario, load
 from simulation.core.engine import Engine
@@ -25,6 +26,9 @@ def main() -> None:
     parser.add_argument(
         "--communication", action="store_true", help="run Model 1 with deterministic transport"
     )
+    parser.add_argument(
+        "--coordination", choices=["independent", "fixed_sector", "shared_information"]
+    )
     args = parser.parse_args()
     data = load(args.scenario).model_dump()
     for key in ("agents", "seed"):
@@ -33,8 +37,10 @@ def main() -> None:
     e = Engine(Scenario.model_validate(data))
 
     fleet = (
-        Fleet(e, args.agent_config, communication=args.communication)
-        if args.policy == "model1" or args.communication
+        Fleet(
+            e, args.agent_config, communication=args.communication, coordination=args.coordination
+        )
+        if args.policy == "model1" or args.communication or args.coordination
         else None
     )
 
@@ -70,7 +76,10 @@ def main() -> None:
                             e.reset(e.seed)
                             if fleet:
                                 fleet = Fleet(
-                                    e, args.agent_config, communication=args.communication
+                                    e,
+                                    args.agent_config,
+                                    communication=args.communication,
+                                    coordination=args.coordination,
                                 )
                         if event.key == pygame.K_TAB:
                             selected = (selected + 1) % (len(e.drones) + 1)
@@ -80,7 +89,32 @@ def main() -> None:
                             speed = max(1, speed - 1)
                 if (single or not paused) and e.reason == "running":
                     advance()
-                view.draw(e, ([None] + list(e.drones))[selected])
+                selected_agent = ([None] + list(e.drones))[selected]
+                if fleet and fleet.assignments and selected_agent is None:
+                    fixture = fleet.assignments
+                    view.draw(
+                        e,
+                        None,
+                        {
+                            a: (t.target.x, t.target.y)
+                            for a, t in fleet.assignments.current.items()
+                            if t.history[-1].state in ("assigned", "in_progress")
+                        },
+                        sectors={
+                            a: tuple((c.x, c.y) for c in sector_cells(fixture.mission, a))
+                            for a in fixture.mission.members
+                        }
+                        if args.coordination != "independent"
+                        else None,
+                        status=(
+                            f"Mission {fixture.transitions[-1][1]} | Survey tasks {fixture.issued} | Reported cells {len(fixture.reported)}",
+                            "Health "
+                            + " ".join(f"{a} {state}" for a, state in fixture.availability.items()),
+                            f"Review events {len(fixture.conflicts)} | Latest: {fixture.conflicts[-1][2] if fixture.conflicts else 'none'}",
+                        ),
+                    )
+                else:
+                    view.draw(e, selected_agent)
                 clock.tick(speed)
         finally:
             view.close()
@@ -98,6 +132,21 @@ def main() -> None:
         path = export(e, args.output or Path("runs"))
         if fleet and fleet.network:
             fleet.network.export(path)
+        if fleet and fleet.assignments:
+            path.with_suffix(".coordination.json").write_text(
+                json.dumps(
+                    {
+                        "policy": args.coordination,
+                        "version": "1",
+                        "command": fleet.assignments.command_snapshot(),
+                        "settings": next(iter(fleet.agents.values())).settings.model_dump(
+                            mode="json"
+                        ),
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
         print(path)
 
 

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Protocol
 
 import numpy as np
 from gymnasium.spaces import Box, Discrete
@@ -15,6 +15,10 @@ Vectors = dict[str, NDArray[np.int32]]
 Infos = dict[str, dict[str, object]]
 
 
+class RewardProvider(Protocol):
+    def __call__(self, agent: str, observation: NDArray[np.int32], action: int) -> float: ...
+
+
 class RescueEnv(ParallelEnv):  # type: ignore[misc]
     metadata: ClassVar[dict[str, object]] = {
         "name": "swarm_aid_v1",
@@ -22,7 +26,14 @@ class RescueEnv(ParallelEnv):  # type: ignore[misc]
         "is_parallelizable": True,
     }
 
-    def __init__(self, config: Scenario, render_mode: str | None = None) -> None:
+    def __init__(
+        self,
+        config: Scenario,
+        render_mode: str | None = None,
+        *,
+        reward: RewardProvider | None = None,
+    ) -> None:
+        self.reward = reward
         self.engine = Engine(config)
         self.render_mode = render_mode
         self.possible_agents = list(self.engine.drones)
@@ -76,7 +87,10 @@ class RescueEnv(ParallelEnv):  # type: ignore[misc]
         self.agents = [a for a in previous if not terms[a] and not trunc[a]]
         return (
             {a: self.obs(a) for a in previous},
-            {a: 0.0 for a in previous},
+            {
+                a: self.reward(a, self.obs(a), actions.get(a, 0)) if self.reward else 0.0
+                for a in previous
+            },
             terms,
             trunc,
             {a: {} for a in previous},

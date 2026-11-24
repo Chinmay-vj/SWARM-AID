@@ -83,6 +83,8 @@ class Engine:
         self.views: dict[str, Packet] = {}
         self.pending: dict[tuple[int, str], Packet | None] = {}
         self.mail: list[tuple[int, str, Envelope]] = []
+        self.covered_by_agent: dict[str, set[Point]] = {a: set() for a in self.drones}
+        self.first_seen_ms: dict[str, int] = {}
         self.covered: set[Point] = set()
         self.seen: set[str] = set()
         self.invalid = self.false = self.missed = self.count = self.connected = (
@@ -168,6 +170,9 @@ class Engine:
                 ),
                 readings=(),
             )
+            self.covered_by_agent[a].update(foot)
+            for person_id in seen:
+                self.first_seen_ms.setdefault(person_id, self.t * c.tick_ms)
             self.covered.update(foot)
             self.seen.update(seen)
             self.false += false
