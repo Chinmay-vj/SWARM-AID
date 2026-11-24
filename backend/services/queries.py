@@ -32,12 +32,14 @@ from backend.schemas import (
     MapLayer,
     MapResponse,
     ObservationOut,
+    ObservationTraceOut,
     RecommendationOut,
     RecommendationStatusOut,
     ReviewItem,
     SectorOut,
     TaskEventOut,
     TaskOut,
+    TraceIncidentOut,
     location,
 )
 from backend.services.access import mission_for, owned, paginate
@@ -195,6 +197,90 @@ class QueryService:
                 )
                 for e in rows
             ]
+
+    TRACE_EVENT_LIMIT = 500
+
+    def observation_trace(self, principal: Principal, pk: UUID) -> ObservationTraceOut:
+        """Follow one observation through Model 2, human review and the event outbox."""
+        evidence = self.evidence(principal, pk)
+        with self.db.read() as session:
+            o = owned(session, principal, m.Observation, pk)
+            now = self._now(session, o.mission_id)
+            links = session.scalars(
+                select(m.IncidentEvidence)
+                .where(
+                    m.IncidentEvidence.mission_id == o.mission_id,
+                    m.IncidentEvidence.observation_pk == o.id,
+                )
+                .order_by(m.IncidentEvidence.first_revision)
+            ).all()
+            incidents: list[TraceIncidentOut] = []
+            for link in links:
+                incident = session.get(m.Incident, link.incident_id)
+                if incident is None or incident.mission_id != o.mission_id:
+                    continue
+                revisions = session.execute(
+                    select(m.IncidentRevision.revision, m.IncidentRevision.report_message_ids)
+                    .where(m.IncidentRevision.incident_id == incident.id)
+                    .order_by(m.IncidentRevision.revision)
+                ).all()
+                incidents.append(
+                    TraceIncidentOut(
+                        incident=self.incident_out(session, incident, now),
+                        role=link.role,
+                        first_revision=link.first_revision,
+                        revisions_citing_report=[
+                            rev for rev, ids in revisions if str(o.message_id) in (ids or [])
+                        ],
+                    )
+                )
+            incident_ids = [t.incident.id for t in incidents]
+            recommendations = (
+                session.scalars(
+                    select(m.Recommendation)
+                    .where(
+                        m.Recommendation.mission_id == o.mission_id,
+                        m.Recommendation.incident_id.in_(incident_ids),
+                    )
+                    .order_by(m.Recommendation.created_sim_ms, m.Recommendation.incident_revision)
+                ).all()
+                if incident_ids
+                else []
+            )
+            rec_ids = [r.id for r in recommendations]
+            decisions = (
+                session.scalars(
+                    select(m.HumanDecision)
+                    .where(
+                        m.HumanDecision.mission_id == o.mission_id,
+                        m.HumanDecision.recommendation_id.in_(rec_ids)
+                        | m.HumanDecision.incident_id.in_(incident_ids),
+                    )
+                    .order_by(m.HumanDecision.submitted_at)
+                ).all()
+                if incident_ids
+                else []
+            )
+            resources = {str(o.id)} | {str(i) for i in incident_ids} | {str(r) for r in rec_ids}
+            resources |= {str(d.id) for d in decisions}
+            events = session.scalars(
+                select(m.DomainEvent)
+                .where(
+                    m.DomainEvent.mission_id == o.mission_id,
+                    m.DomainEvent.resource_id.in_(sorted(resources)),
+                )
+                .order_by(m.DomainEvent.sequence)
+                .limit(self.TRACE_EVENT_LIMIT + 1)
+            ).all()
+            return ObservationTraceOut(
+                observation=self.observation_out(o, now),
+                evidence=evidence,
+                incidents=incidents,
+                recommendations=[RecommendationOut.model_validate(r) for r in recommendations],
+                decisions=[DecisionOut.model_validate(d) for d in decisions],
+                events=[EventOut.model_validate(e) for e in events[: self.TRACE_EVENT_LIMIT]],
+                events_truncated=len(events) > self.TRACE_EVENT_LIMIT,
+            )
 
     def evidence_group(self, principal: Principal, incident_id: UUID) -> EvidenceGroupOut:
         with self.db.read() as session:

@@ -22,6 +22,7 @@ from backend.schemas import (
     ObservationIn,
     ObservationIngestResult,
     ObservationOut,
+    ObservationTraceOut,
     Page,
 )
 from backend.services import audit
@@ -276,6 +277,18 @@ def get_observation(
     observation_id: UUID, principal: PrincipalDep, services: ContainerDep
 ) -> ObservationOut:
     return services.queries.observation(principal, observation_id)
+
+
+@router.get(
+    "/observations/{observation_id}/trace",
+    response_model=ObservationTraceOut,
+    tags=["observations"],
+)
+def observation_trace(
+    observation_id: UUID, principal: PrincipalDep, services: ContainerDep
+) -> ObservationTraceOut:
+    """Diagnostic: where this report went (incidents, recommendations, decisions, events)."""
+    return services.queries.observation_trace(principal, observation_id)
 
 
 @router.get(

@@ -29,6 +29,7 @@ ml = []
 [tool.setuptools.packages.find]
 include = [
     "agents*", "communication*", "interfaces*", "configs*", "simulation*", "evaluation*", "backend*",
+    "orchestration*",
 ]
 namespaces = false
 
@@ -51,5 +52,5 @@ strict = true
 plugins = ["pydantic.mypy"]
 files = [
     "agents", "communication", "interfaces", "configs", "simulation", "evaluation", "backend", "migrations",
-    "tests",
+    "orchestration", "tests",
 ]

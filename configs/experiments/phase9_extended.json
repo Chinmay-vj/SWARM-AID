@@ -1,0 +1,13 @@
+{
+  "name": "phase9-extended",
+  "profile": "extended",
+  "description": "Integration and reproducibility benchmark: scaling across agent counts and seeds, all three coordination baselines, the three Model 2 modes, every registered disaster and the communication fault fixtures.",
+  "max_runs": 400,
+  "blocks": [
+    {"name": "scaling", "scenarios": ["flood_basic", "wildfire_basic", "earthquake_basic"], "agents": [1, 3, 6, 10, 20], "seeds": [42, 43, 44, 45, 46]},
+    {"name": "coordination", "scenarios": ["flood_basic"], "agents": [6], "seeds": [42, 43, 44, 45, 46], "coordination": ["independent", "fixed_sector", "shared_information"]},
+    {"name": "model2-modes", "scenarios": ["flood_basic", "flood_multiple"], "agents": [6], "seeds": [42, 43, 44], "command_modes": ["direct", "rules", "fusion"]},
+    {"name": "disasters", "scenarios": ["cyclone_basic", "landslide_basic"], "agents": [6], "seeds": [42, 43, 44]},
+    {"name": "faults", "scenarios": ["flood_agent_disconnected", "flood_network_delay", "flood_network_duplicate", "flood_network_loss", "flood_network_partition", "flood_network_reorder", "flood_noise", "flood_outage", "flood_server_unavailable", "flood_unavailable"], "agents": [6], "seeds": [42, 43]}
+  ]
+}

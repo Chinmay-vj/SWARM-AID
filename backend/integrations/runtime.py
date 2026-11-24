@@ -54,27 +54,10 @@ EVENT_FOR = {
 
 
 def git_commit() -> str | None:
-    """HEAD commit, suffixed "-dirty" when the working tree has uncommitted changes, so an
-    export never claims a commit that does not contain the code that produced it."""
-    import subprocess
-    from pathlib import Path
+    """HEAD commit, "-dirty" when the working tree differs (see orchestration.manifest)."""
+    from orchestration.manifest import git_commit as current_commit
 
-    root = Path(__file__).resolve().parents[2]
-
-    def git(*args: str) -> str | None:
-        try:
-            out = subprocess.run(
-                ["git", *args], capture_output=True, text=True, timeout=5, cwd=root, check=False
-            )
-        except (OSError, subprocess.SubprocessError):
-            return None
-        return out.stdout.strip() if out.returncode == 0 else None
-
-    head = git("rev-parse", "HEAD")
-    if not head:
-        return None
-    status = git("status", "--porcelain", "--untracked-files=no")
-    return f"{head}-dirty" if status else head
+    return current_commit()
 
 
 def transition_mission(

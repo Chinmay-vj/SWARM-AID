@@ -44,7 +44,7 @@ ingestion endpoints, `GET /tasks/{id}`, `/hazards/{id}`, `/map/layers`, `GET /au
 | Hazard severity | Not reported by the backend | Shown as "not reported"; never inferred |
 | Battery | Reported by Model 1 health; may be absent | Shown only when reported |
 | Per-link peer communication state | Not exposed | Peer links drawn as "unknown" |
-| Model 2 unavailability | `model2_state` only moves from active to ended in the current integration; no scenario emits `MODEL_2_UNAVAILABLE` | UI handles the state (synthetic preset and component tests); connected demonstration not possible — Phase 9 item |
+| Model 2 unavailability | Emitted when the simulated command endpoint is down (`flood_server_unavailable`, `flood_outage`, or `outage_steps`); the API `model2_state` is `unavailable` meanwhile (agent state `offline`) | Verified against the real backend in Phase 9 (`tests/e2e/connected/integration.spec.ts`, `scripts/system_demo.py`). The Phase 8 statement that it could not occur was wrong |
 | HttpOnly cookie sessions | Backend issues bearer tokens in JSON | Bearer design kept; see Authentication |
 
 ## Data contracts, freshness and uncertainty

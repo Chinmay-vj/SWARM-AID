@@ -576,3 +576,30 @@ class RecoveryReport(BaseModel):
     restored_incidents: int
     matches_persisted_read_model: bool | None
     detail: str
+
+
+class TraceIncidentOut(BaseModel):
+    """An incident that this observation supports or contradicts."""
+
+    incident: IncidentOut
+    role: str
+    first_revision: int
+    revisions_citing_report: list[int]
+
+
+class ObservationTraceOut(BaseModel):
+    """Processing history of one reported observation, for research diagnostics.
+
+    Persisted, authorized records only: the report as received, its evidence references, the
+    Model 2 incidents and recommendation versions it fed, the human decisions on those
+    recommendations and the mission events about any of them. Private agent memory, Model 2
+    internals and evaluator ground truth are never included.
+    """
+
+    observation: ObservationOut
+    evidence: list[EvidenceOut]
+    incidents: list[TraceIncidentOut]
+    recommendations: list[RecommendationOut]
+    decisions: list[DecisionOut]
+    events: list[EventOut]
+    events_truncated: bool

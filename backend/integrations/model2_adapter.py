@@ -422,6 +422,10 @@ class Model2Sync:
             )
         )
         added = []
+        # Model 2 flags a report as conflicting when it contradicts another report for the same
+        # cell and observation time. The flag is copied, not inferred, so the evidence group
+        # shows the contradiction instead of counting the report as plain support.
+        conflicting = {r.message_id for r in self.ctx.command.conflicts}
         for message_id in inc.reports:
             pk = self.observations.get(message_id)
             if pk is not None and pk not in linked:
@@ -433,6 +437,7 @@ class Model2Sync:
                         incident_id=iid,
                         observation_pk=pk,
                         first_revision=inc.revision,
+                        role="conflicting" if message_id in conflicting else "supporting",
                     )
                 )
         summary = {

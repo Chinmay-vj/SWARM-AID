@@ -1,0 +1,9 @@
+{
+  "name": "phase9-smoke",
+  "profile": "smoke",
+  "description": "Representative integrated runs for rapid verification: three disasters, small and default fleets, one fault scenario, plus a determinism repeat per cell.",
+  "blocks": [
+    {"name": "disasters", "scenarios": ["flood_basic", "wildfire_basic", "earthquake_basic"], "agents": [1, 6], "seeds": [42]},
+    {"name": "model2-outage", "scenarios": ["flood_server_unavailable"], "agents": [6], "seeds": [42]}
+  ]
+}

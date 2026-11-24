@@ -129,3 +129,20 @@ npm run dev        # http://127.0.0.1:5173 (proxies /api, /health and /ws to 127
 ```
 
 `scripts\start_dashboard.ps1` starts both services after checking prerequisites. Verification: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run test:e2e`, and `npm run test:e2e:connected` with `E2E_PASSWORD` set. See the [frontend README](frontend/README.md), [docs/frontend](docs/frontend/FRONTEND_ARCHITECTURE.md) and the [Phase 8 report](docs/PHASE_8_COMPLETION_REPORT.md). The original presentation MVP is preserved in `frontend/legacy-mvp/`.
+
+## Phase 9 integrated system
+
+Phase 9 integrates and verifies the whole stack (simulator, independent Model 1 agents, simulated communication, coordination, Model 2, backend, database, event stream, dashboard and evaluator) as one local, CPU-only research platform. It adds no models and no datasets. From the repository root in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\start_system.ps1      # validate, migrate, start backend + dashboard
+powershell -ExecutionPolicy Bypass -File scripts\status_system.ps1     # health, database, active missions
+powershell -ExecutionPolicy Bypass -File scripts\stop_system.ps1       # graceful; stops only what start_system started
+powershell -ExecutionPolicy Bypass -File scripts\start_system.ps1 -Headless -Scenario flood_basic -Agents 6 -Seed 42
+
+.\.venv\Scripts\python.exe -m orchestration check                       # configuration validation
+.\.venv\Scripts\python.exe -m orchestration matrix --config configs\experiments\phase9_smoke.json
+.\.venv\Scripts\python.exe scripts\system_demo.py                       # connected demonstration (dev accounts)
+```
+
+The dashboard is at http://127.0.0.1:5173 and the API at http://127.0.0.1:8000/docs. See [system architecture](docs/integration/SYSTEM_ARCHITECTURE.md), [operations](docs/integration/SYSTEM_OPERATIONS.md), [component inventory](docs/integration/COMPONENT_INVENTORY.md), [reproducibility](docs/research/REPRODUCIBILITY_GUIDE.md), [CPU baselines](docs/research/CPU_BASELINE_BENCHMARKS.md), the [Phase 9 report](docs/PHASE_9_COMPLETION_REPORT.md) and the [Phase 10 readiness checklist](docs/PHASE_10_READINESS_CHECKLIST.md).

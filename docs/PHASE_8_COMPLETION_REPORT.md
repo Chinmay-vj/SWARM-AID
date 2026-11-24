@@ -199,6 +199,8 @@ recovery. Mission switching changes the scope of the header, timeline and stream
   `MODEL_2_UNAVAILABLE` is never emitted. Dashboard handling is verified with the synthetic
   preset and in component/e2e mock tests only.
 
+  > **Correction (Phase 9, 2026-11-24):** this statement is wrong. `Fleet.advance` sets the Model 2 state to `offline` while its transport endpoint is down, and the backend emits `MODEL_2_UNAVAILABLE` and `MODEL_2_RECOVERED` for `flood_server_unavailable`, `flood_outage` or any mission with `outage_steps`. Phase 9 verified this against the running system and in the dashboard; see `docs/PHASE_9_COMPLETION_REPORT.md`.
+
 ## 13. Human oversight results
 
 - **Verified connected:** pause → review queue → approve with reason and confirmation → UI
@@ -346,6 +348,7 @@ generates about 8–9 requests per second. These are not scalability claims.
 
 - **Model 2 unavailability** can't be produced by the real backend; it's demonstrated
   synthetically only.
+  *(Corrected in Phase 9: it can be produced; see the note in section 25.)*
 - **PostgreSQL/PostGIS** is not verified.
 - **Evidence media:** the simulator doesn't upload evidence objects, so connected evidence is
   reference-only. The authorized image path (blob, PNG/JPEG only, zoom) is implemented but not
