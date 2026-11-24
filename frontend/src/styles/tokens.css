@@ -1,0 +1,135 @@
+/* SWARM-AID design tokens. Palette preserved from the Phase 8 presentation MVP. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #070d1a;
+  --bg-2: #0b1426;
+  --surface: #111a2b;
+  --surface-2: #162238;
+  --surface-3: #1c2a44;
+  --line: #22324d;
+  --line-strong: #2f4466;
+  --text: #dbe7f5;
+  --text-strong: #f2f8ff;
+  --muted: #8ea2bb;
+  --accent: #22d3ee;
+  --accent-2: #14b8a6;
+  --accent-contrast: #04212a;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --info: #38bdf8;
+  --violet: #a78bfa;
+  --unknown: #94a3b8;
+  --ok-bg: rgba(52, 211, 153, 0.12);
+  --warn-bg: rgba(251, 191, 36, 0.12);
+  --bad-bg: rgba(248, 113, 113, 0.12);
+  --info-bg: rgba(56, 189, 248, 0.12);
+  --muted-bg: rgba(148, 163, 184, 0.12);
+  --accent-bg: rgba(34, 211, 238, 0.12);
+  --focus: #fde047;
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  /* map layers */
+  --map-bg: #08111f;
+  --map-cell: #0d1728;
+  --map-grid: #1e293b;
+  --map-coverage: rgba(20, 184, 166, 0.3);
+  --map-coverage-stale: rgba(20, 184, 166, 0.12);
+  --map-unknown: #0b1322;
+  --map-hazard: #3b82f6;
+  --map-sector: rgba(34, 211, 238, 0.35);
+  --map-agent: #22d3ee;
+  --map-incident: #f87171;
+  --map-sighting: #fbbf24;
+  /* charts */
+  --chart-1: #22d3ee;
+  --chart-2: #34d399;
+  --chart-3: #a78bfa;
+  --chart-4: #fbbf24;
+  --chart-5: #f87171;
+  --chart-grid: #22324d;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #eef2f7;
+  --bg-2: #e3e9f1;
+  --surface: #ffffff;
+  --surface-2: #f4f7fb;
+  --surface-3: #e8eef6;
+  --line: #cdd7e4;
+  --line-strong: #a9b8cc;
+  --text: #142033;
+  --text-strong: #050b16;
+  --muted: #44546a;
+  --accent: #0a5a70;
+  --accent-2: #0f766e;
+  --accent-contrast: #ffffff;
+  --ok: #035c44;
+  --warn: #7c330b;
+  --bad: #991b1b;
+  --info: #075985;
+  --violet: #5b21b6;
+  --unknown: #3f4b5c;
+  --ok-bg: rgba(4, 120, 87, 0.07);
+  --warn-bg: rgba(180, 83, 9, 0.08);
+  --bad-bg: rgba(185, 28, 28, 0.07);
+  --info-bg: rgba(3, 105, 161, 0.07);
+  --muted-bg: rgba(71, 85, 105, 0.1);
+  --accent-bg: rgba(14, 116, 144, 0.07);
+  --focus: #b45309;
+  --shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  --map-bg: #f8fafc;
+  --map-cell: #eef2f7;
+  --map-grid: #cbd5e1;
+  --map-coverage: rgba(13, 148, 136, 0.28);
+  --map-coverage-stale: rgba(13, 148, 136, 0.1);
+  --map-unknown: #e2e8f0;
+  --map-hazard: #2563eb;
+  --map-sector: rgba(14, 116, 144, 0.45);
+  --map-agent: #0e7490;
+  --map-incident: #dc2626;
+  --map-sighting: #b45309;
+  --chart-1: #0e7490;
+  --chart-2: #047857;
+  --chart-3: #6d28d9;
+  --chart-4: #b45309;
+  --chart-5: #b91c1c;
+  --chart-grid: #cbd5e1;
+}
+
+:root {
+  --font: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+  --mono: "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --fs-xs: 11px;
+  --fs-sm: 12.5px;
+  --fs-md: 13.5px;
+  --fs-lg: 16px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --row-pad: 7px;
+  --topbar-h: 56px;
+  --sidebar-w: 228px;
+}
+
+:root[data-density="compact"] {
+  --row-pad: 4px;
+  --sp-3: 9px;
+  --sp-4: 12px;
+}
+
+:root[data-text="large"] {
+  --fs-xs: 13px;
+  --fs-sm: 14.5px;
+  --fs-md: 15.5px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-2xl: 27px;
+}

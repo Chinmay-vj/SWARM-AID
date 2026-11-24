@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SWARM-AID Command Center</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" class="logo"><circle cx="16" cy="16" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 3v6M16 23v6M3 16h6M23 16h6" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-opacity=".35"/></svg>
+    <div><h1>SWARM-AID</h1><p>Multi-Agentic AI Disaster Search &amp; Rescue System</p></div>
+  </div>
+  <div class="topstats">
+    <div class="pill" id="modePill">SYNTHETIC DEMO MODE</div>
+    <div class="tstat"><span>Scenario</span><b id="tScenario">Flood</b></div>
+    <div class="tstat"><span>Mission</span><b id="tStatus">Idle</b></div>
+    <div class="tstat"><span>Sim time</span><b id="tTime">00:00.0</b></div>
+    <div class="tstat"><span>Backend</span><b id="tBackend"><i class="dot"></i>checking</b></div>
+    <div class="tstat"><span>Model 2</span><b id="tModel2"><i class="dot"></i>idle</b></div>
+  </div>
+</header>
+
+<div class="layout">
+  <nav class="sidebar" id="nav">
+    <button data-view="overview" class="active">Mission Overview</button>
+    <button data-view="live">Live Simulation</button>
+    <button data-view="fleet">Drone Fleet</button>
+    <button data-view="incidents">Incidents</button>
+    <button data-view="evidence">Evidence</button>
+    <button data-view="recs">Rescue Recommendations</button>
+    <button data-view="comms">Communication Network</button>
+    <button data-view="analytics">Research Analytics</button>
+    <button data-view="health">System Health</button>
+    <div class="sidefoot">Simulation only. No physical drone control. Human decisions remain authoritative.</div>
+  </nav>
+
+  <main>
+    <section class="controls card">
+      <div class="ctl">
+        <label>Mode</label>
+        <select id="selMode"><option value="synthetic">Synthetic Demo</option><option value="connected">Connected Simulation</option></select>
+      </div>
+      <div class="ctl"><label>Scenario</label>
+        <select id="selScenario">
+          <option value="flood_basic">Flood</option><option value="wildfire_basic">Wildfire</option>
+          <option value="earthquake_basic">Earthquake</option><option value="cyclone_basic">Cyclone</option>
+          <option value="landslide_basic">Landslide</option>
+        </select></div>
+      <div class="ctl"><label>Drones</label>
+        <select id="selDrones"><option>3</option><option selected>6</option><option>10</option></select></div>
+      <div class="ctl"><label>Speed</label>
+        <select id="selSpeed"><option value="1">1x</option><option value="2" selected>2x</option><option value="4">4x</option></select></div>
+      <div class="btns">
+        <button class="btn primary" id="btnDemo">&#9654; Run Demo</button>
+        <button class="btn" id="btnStart">Start</button>
+        <button class="btn" id="btnPause">Pause</button>
+        <button class="btn" id="btnResume">Resume</button>
+        <button class="btn" id="btnStop">Stop</button>
+        <button class="btn ghost" id="btnReset">Reset</button>
+      </div>
+      <div id="login" class="login hidden">
+        <input id="lgUser" value="coordinator" placeholder="username">
+        <input id="lgPass" type="password" placeholder="password">
+        <button class="btn primary" id="btnLogin">Connect</button>
+        <span id="lgMsg" class="muted"></span>
+      </div>
+    </section>
+
+    <section class="metrics" id="metrics"></section>
+
+    <div class="views">
+      <!-- OVERVIEW / LIVE -->
+      <section class="view active" data-view="overview live">
+        <div class="grid-main">
+          <div class="card mapcard">
+            <div class="cardhead"><h2>Live Disaster Simulation Map</h2><span class="muted" id="mapNote"></span></div>
+            <svg id="map" viewBox="0 0 600 500" preserveAspectRatio="xMidYMid meet"></svg>
+            <div class="legend">
+              <span><i class="lg base"></i>Base</span><span><i class="lg bld"></i>Building / blocked</span>
+              <span><i class="lg water"></i>Hazard</span><span><i class="lg cov"></i>Reported coverage</span>
+              <span><i class="lg unk"></i>Unknown</span><span><i class="lg drone"></i>Drone (Model 1)</span>
+              <span><i class="lg sight"></i>Possible human sighting</span><span><i class="lg inc"></i>Incident (Model 2)</span>
+            </div>
+          </div>
+          <div class="col">
+            <div class="card model2">
+              <div class="cardhead"><h2>Model 2 · Central Rescue Command Agent</h2><span class="badge" id="m2Badge">idle</span></div>
+              <div class="m2grid" id="m2Stats"></div>
+              <div class="m2flow" id="m2Flow"></div>
+            </div>
+            <div class="card feedcard">
+              <div class="cardhead"><h2>Live Event Feed</h2><span class="muted" id="feedNote"></span></div>
+              <ul class="feed" id="feed"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="grid-two">
+          <div class="card"><div class="cardhead"><h2>Model 1 · Drone Intelligence Agents</h2></div><div class="fleet" id="fleetMini"></div></div>
+          <div class="card"><div class="cardhead"><h2>Human Review Queue</h2></div><div id="reviewMini"></div></div>
+        </div>
+      </section>
+
+      <section class="view" data-view="fleet">
+        <div class="grid-two wide-left">
+          <div class="card"><div class="cardhead"><h2>Drone Fleet · Model 1 runs independently on every drone</h2></div><div class="fleet big" id="fleetFull"></div></div>
+          <div class="card"><div class="cardhead"><h2>Selected Drone</h2></div><div id="droneDetail" class="detail muted">Select a drone on the map or in the fleet list.</div></div>
+        </div>
+      </section>
+
+      <section class="view" data-view="incidents">
+        <div class="grid-two wide-left">
+          <div class="card"><div class="cardhead"><h2>Incidents (Model 2 assessments)</h2></div><table class="tbl" id="incTable"></table></div>
+          <div class="card"><div class="cardhead"><h2>Incident Detail</h2></div><div id="incDetail" class="detail muted">Select an incident.</div></div>
+        </div>
+      </section>
+
+      <section class="view" data-view="evidence">
+        <div class="card"><div class="cardhead"><h2>Evidence · Reported observations</h2><span class="muted">Synthetic sensor artifacts only</span></div><table class="tbl" id="obsTable"></table></div>
+      </section>
+
+      <section class="view" data-view="recs">
+        <div class="card"><div class="cardhead"><h2>Rescue Decision-Support Recommendations · Human Oversight</h2></div><div id="reviewFull"></div></div>
+      </section>
+
+      <section class="view" data-view="comms">
+        <div class="grid-two wide-left">
+          <div class="card"><div class="cardhead"><h2>Communication Network</h2><span class="muted">peer-to-peer · drone→command · command→human</span></div><svg id="net" viewBox="0 0 600 420"></svg></div>
+          <div class="card"><div class="cardhead"><h2>Link Status</h2></div><div id="commStats"></div></div>
+        </div>
+      </section>
+
+      <section class="view" data-view="analytics">
+        <div class="charts" id="charts"></div>
+      </section>
+
+      <section class="view" data-view="health">
+        <div class="card"><div class="cardhead"><h2>System Health</h2></div><div id="health" class="detail"></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+<div id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>

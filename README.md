@@ -101,3 +101,31 @@ From the repository root in PowerShell with the dev and simulation extras instal
 ```
 
 The CLI uses deterministic fusion by default. Direct forwarding and per-report assessment are available through command configuration and the experiment runner. See the [Model 2 implementation](docs/command_agent/MODEL_2_IMPLEMENTATION.md) and [Phase 6 report](docs/PHASE_6_COMPLETION_REPORT.md).
+
+## Phase 7 backend
+
+The FastAPI backend in `backend/` persists and serves simulator, Model 1 and Model 2 outputs, relays authenticated human decisions to Model 2 for validation, and streams mission events over WebSockets. It performs no reasoning of its own and has no physical drone control. From the repository root in PowerShell with the dev, simulation and backend extras installed:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install -e ".[dev,simulation,backend]"
+Copy-Item .env.example .env   # then set SWARM_JWT_SECRET (required, >= 32 characters)
+.\.venv\Scripts\python.exe -m alembic upgrade head
+.\.venv\Scripts\python.exe -m backend.cli create-user --username admin --role administrator
+.\.venv\Scripts\python.exe -m uvicorn backend.main:app --host 127.0.0.1 --port 8000
+.\.venv\Scripts\python.exe scripts\backend_demo.py              # end-to-end synthetic demonstration
+.\.venv\Scripts\python.exe -m evaluation.backend_benchmark      # local benchmark
+```
+
+Add `--reload` only for development, never for benchmarks. API documentation is served at http://127.0.0.1:8000/docs. SQLite is the default; PostgreSQL with PostGIS is supported through `SWARM_DATABASE_URL` and the optional `docker-compose.yml`, but was not verified in Phase 7. See [backend architecture](docs/backend/BACKEND_ARCHITECTURE.md), [database](docs/backend/DATABASE.md), [API reference](docs/backend/API_REFERENCE.md), [security](docs/backend/SECURITY.md) and the [Phase 7 report](docs/PHASE_7_COMPLETION_REPORT.md).
+
+## Phase 8 rescue command dashboard
+
+The React + TypeScript dashboard in `frontend/` monitors missions (map, Model 1 fleet, observations, evidence, Model 2 incidents and recommendations, coordination, hazards, communication, events, analytics) and relays human-oversight decisions to the Phase 7 backend. It has two isolated data sources: **Connected simulation** (the backend) and a clearly labelled **Synthetic demo** that runs entirely in the browser. Simulation research only: no physical drone control. With the backend running (see Phase 7 above), from PowerShell:
+
+```powershell
+cd frontend
+npm ci
+npm run dev        # http://127.0.0.1:5173 (proxies /api, /health and /ws to 127.0.0.1:8000)
+```
+
+`scripts\start_dashboard.ps1` starts both services after checking prerequisites. Verification: `npm run typecheck`, `npm run lint`, `npm run test`, `npm run test:e2e`, and `npm run test:e2e:connected` with `E2E_PASSWORD` set. See the [frontend README](frontend/README.md), [docs/frontend](docs/frontend/FRONTEND_ARCHITECTURE.md) and the [Phase 8 report](docs/PHASE_8_COMPLETION_REPORT.md). The original presentation MVP is preserved in `frontend/legacy-mvp/`.
