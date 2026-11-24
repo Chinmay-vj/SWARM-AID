@@ -1,8 +1,29 @@
 # SWARM-AID
 
-A CPU-only research foundation for drone-assisted civilian disaster search and rescue. Phase 1 provides executable configuration and message validation, ten provider protocols, and architecture and research specifications. Runtime agents, simulation, persistence and operator dashboard are future phases.
+Phase 2 adds a CPU-only symbolic disaster simulator, seven JSON scenarios, a PettingZoo parallel adapter and a Pygame debug viewer. The human dashboard and learned policies are future work.
 
-## Windows quick start
+## Windows simulation quick start
+
+From the repository root with Python 3.12 installed, run:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python -m pip install -e ".[dev,simulation]"
+.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 6 --seed 42 --headless --output runs
+.\.venv\Scripts\python -m simulation --scenario wildfire_basic --render
+.\.venv\Scripts\python -m simulation --scenario earthquake_basic --policy random
+.\.venv\Scripts\python -m pytest -q
+.\.venv\Scripts\python -m mypy
+```
+
+The viewer starts paused. Press Space to run, N to step or Tab to cycle views. The workspace-local interpreter under .tools/python can also run these commands.
+
+- [Simulation architecture](docs/simulation/SIMULATION_ARCHITECTURE.md)
+- [Phase 2 completion report](docs/PHASE_2_COMPLETION_REPORT.md)
+
+
+
+## Core-only setup
 
 From the repository root in PowerShell with Python 3.12 installed (3.11 also supported), run:
 

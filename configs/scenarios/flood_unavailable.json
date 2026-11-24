@@ -1,0 +1,67 @@
+{
+  "scenario_id": "flood_unavailable",
+  "disaster": "flood",
+  "terrain": {
+    "base": [
+      {
+        "x": 0,
+        "y": 3
+      }
+    ],
+    "restricted": [
+      {
+        "x": 1,
+        "y": 3
+      }
+    ],
+    "building": [
+      {
+        "x": 2,
+        "y": 3
+      }
+    ],
+    "obstacle": [
+      {
+        "x": 3,
+        "y": 3
+      }
+    ],
+    "road": [
+      {
+        "x": 4,
+        "y": 3
+      }
+    ],
+    "blocked": [
+      {
+        "x": 5,
+        "y": 3
+      }
+    ],
+    "water": [
+      {
+        "x": 6,
+        "y": 3
+      }
+    ],
+    "weak_radio": [
+      {
+        "x": 7,
+        "y": 3
+      }
+    ]
+  },
+  "events": [
+    {
+      "step": 5,
+      "cell": {
+        "x": 7,
+        "y": 6
+      },
+      "terrain": "water"
+    }
+  ],
+  "unavailable": [
+    1
+  ]
+}
