@@ -1,0 +1,6 @@
+schema_version = "1.0"
+seed = 42
+tick_ms = 100
+offline_budget_ms = 3000
+battery_reserve = 0.20
+scenario = "flood"
