@@ -1,0 +1,1 @@
+{"agent_id":"template","perception":"mock","fusion":"mock","reasoning":"rules","planning":"bounded","communication":"memory","capacity":128,"ttl_ms":3000,"reserve":0.22,"logging":true,"movement":false}

@@ -20,7 +20,7 @@ include = ["agents*", "communication*", "interfaces*", "configs*", "simulation*"
 namespaces = false
 
 [tool.setuptools.package-data]
-configs = ["*.toml", "scenarios/*.json"]
+configs = ["*.toml","*.json", "scenarios/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,0 +1,3 @@
+# REASONING AND PLANNING
+
+The default Rules provider reads a LocalView of retained recent findings. Planner may continue a leased simulated assignment. The orchestrator selects stationary activities from current evidence: conflicts request another observation, possible presence or hazards produce reports, and routine evidence supports observation. The decision log records category, provider, evidence IDs, uncertainty, constraints, proposed intent, safe action and commit outcome. Evidence sent to the human_review mock destination is a review request. The simulator never dispatches rescue resources.

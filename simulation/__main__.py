@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 from evaluation.results import export, metrics
+from simulation.adapters.model1 import Fleet
 from simulation.core.configuration import Scenario, load
 from simulation.core.engine import Engine
 from simulation.policies import choose
@@ -17,9 +18,10 @@ def main() -> None:
     mode.add_argument("--headless", action="store_true")
     mode.add_argument("--render", action="store_true")
     parser.add_argument(
-        "--policy", choices=["stationary", "random", "waypoint"], default="stationary"
+        "--policy", choices=["stationary", "random", "waypoint", "model1"], default="stationary"
     )
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--agent-config", type=Path)
     args = parser.parse_args()
     data = load(args.scenario).model_dump()
     for key in ("agents", "seed"):
@@ -27,7 +29,12 @@ def main() -> None:
             data[key] = getattr(args, key)
     e = Engine(Scenario.model_validate(data))
 
+    fleet = Fleet(e, args.agent_config) if args.policy == "model1" else None
+
     def advance() -> None:
+        if fleet:
+            fleet.advance(e)
+            return
         e.step({a: choose(args.policy, e.views[a], e.t, e.seed + 1) for a in e.active})
 
     if args.render or e.config.render and not args.headless:
@@ -53,6 +60,8 @@ def main() -> None:
                         single = True
                     if event.key == pygame.K_r:
                         e.reset(e.seed)
+                        if fleet:
+                            fleet = Fleet(e, args.agent_config)
                     if event.key == pygame.K_TAB:
                         selected = (selected + 1) % (len(e.drones) + 1)
                     if event.key == pygame.K_UP:
@@ -67,6 +76,10 @@ def main() -> None:
     else:
         while e.reason == "running":
             advance()
+    if fleet:
+        for agent in fleet.agents.values():
+            if agent.logs:
+                print(json.dumps(agent.logs[-1]))
     print(json.dumps(metrics(e)))
     if args.output or e.config.logging:
         print(export(e, args.output or Path("runs")))

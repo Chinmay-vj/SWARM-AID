@@ -2,6 +2,20 @@
 
 Phase 2 adds a CPU-only symbolic disaster simulator, seven JSON scenarios, a PettingZoo parallel adapter and a Pygame debug viewer. The human dashboard and learned policies are future work.
 
+## Model 1 on Windows
+
+Select the independent CPU mock agents explicitly. From the repository root, after installing the simulation extra:
+
+```powershell
+.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 1 --seed 42 --policy model1 --headless
+.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 6 --seed 42 --policy model1 --headless --agent-config configs/model1.json
+```
+
+Each run prints the latest decision per agent and the episode metrics. The default configuration authorizes stationary observations and reports. The simulator retains the Phase 2 policies and their existing defaults.
+
+- [Model 1 implementation](docs/agents/MODEL_1_IMPLEMENTATION.md)
+- [Phase 3 report](docs/PHASE_3_COMPLETION_REPORT.md)
+
 ## Windows simulation quick start
 
 From the repository root with Python 3.12 installed, run:
