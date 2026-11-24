@@ -1,0 +1,9 @@
+{
+  "scenario_id": "flood_network_partition",
+  "disaster": "flood",
+  "terrain": {},
+  "events": [],
+  "partition": true,
+  "width": 4,
+  "height": 2
+}

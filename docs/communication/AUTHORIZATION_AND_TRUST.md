@@ -1,0 +1,3 @@
+# AUTHORIZATION AND TRUST
+
+The transport checks the submitting principal against the source field and active session, verifies mission and enforces role-pair permissions at routing. Peer groups admit drone observations and telemetry. Only operator endpoints send human decisions. The issue fixture binds an expected mission revision to an override; the receiving agent validates it. Command instructions must carry a finite expiry. These checks assume trusted in-process code. A remote adapter would require authenticated sessions, transport encryption, revocation, persisted receipts and replay protection across restarts.

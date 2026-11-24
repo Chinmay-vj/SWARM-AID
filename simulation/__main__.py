@@ -22,6 +22,9 @@ def main() -> None:
     )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--agent-config", type=Path)
+    parser.add_argument(
+        "--communication", action="store_true", help="run Model 1 with deterministic transport"
+    )
     args = parser.parse_args()
     data = load(args.scenario).model_dump()
     for key in ("agents", "seed"):
@@ -29,7 +32,11 @@ def main() -> None:
             data[key] = getattr(args, key)
     e = Engine(Scenario.model_validate(data))
 
-    fleet = Fleet(e, args.agent_config) if args.policy == "model1" else None
+    fleet = (
+        Fleet(e, args.agent_config, communication=args.communication)
+        if args.policy == "model1" or args.communication
+        else None
+    )
 
     def advance() -> None:
         if fleet:
@@ -43,36 +50,40 @@ def main() -> None:
         from simulation.visualization.renderer import Renderer
 
         view = Renderer()
-        clock = pygame.time.Clock()
-        paused = True
-        selected = 0
-        speed = 5
-        running = True
-        while running:
-            single = False
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    running = False
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_SPACE:
-                        paused = not paused
-                    if event.key == pygame.K_n:
-                        single = True
-                    if event.key == pygame.K_r:
-                        e.reset(e.seed)
-                        if fleet:
-                            fleet = Fleet(e, args.agent_config)
-                    if event.key == pygame.K_TAB:
-                        selected = (selected + 1) % (len(e.drones) + 1)
-                    if event.key == pygame.K_UP:
-                        speed = min(60, speed + 1)
-                    if event.key == pygame.K_DOWN:
-                        speed = max(1, speed - 1)
-            if (single or not paused) and e.reason == "running":
-                advance()
-            view.draw(e, ([None] + list(e.drones))[selected])
-            clock.tick(speed)
-        view.close()
+        try:
+            clock = pygame.time.Clock()
+            paused = True
+            selected = 0
+            speed = 5
+            running = True
+            while running:
+                single = False
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_SPACE:
+                            paused = not paused
+                        if event.key == pygame.K_n:
+                            single = True
+                        if event.key == pygame.K_r:
+                            e.reset(e.seed)
+                            if fleet:
+                                fleet = Fleet(
+                                    e, args.agent_config, communication=args.communication
+                                )
+                        if event.key == pygame.K_TAB:
+                            selected = (selected + 1) % (len(e.drones) + 1)
+                        if event.key == pygame.K_UP:
+                            speed = min(60, speed + 1)
+                        if event.key == pygame.K_DOWN:
+                            speed = max(1, speed - 1)
+                if (single or not paused) and e.reason == "running":
+                    advance()
+                view.draw(e, ([None] + list(e.drones))[selected])
+                clock.tick(speed)
+        finally:
+            view.close()
     else:
         while e.reason == "running":
             advance()
@@ -81,8 +92,13 @@ def main() -> None:
             if agent.logs:
                 print(json.dumps(agent.logs[-1]))
     print(json.dumps(metrics(e)))
+    if fleet and fleet.network:
+        print(json.dumps(fleet.network.router.metrics()))
     if args.output or e.config.logging:
-        print(export(e, args.output or Path("runs")))
+        path = export(e, args.output or Path("runs"))
+        if fleet and fleet.network:
+            fleet.network.export(path)
+        print(path)
 
 
 if __name__ == "__main__":

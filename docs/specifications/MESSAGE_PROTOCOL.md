@@ -34,3 +34,7 @@ In v1.0 a reconnect cursor is meaningful only when the authenticated handshake i
 Bind HTTP overrides to the expected mission revision in the If-Match precondition. Persist that precondition with the envelope and verify it atomically on application. Reject a bare v1.0 override received without an authenticated revision binding. A drone applies restrictions through the synchronized command state; delayed resume never revives a revoked lease.
 
 A drone detects command silence using acknowledgements to its periodic heartbeat on the command channel. Only authenticated current-session responses count as contact. Receipt of a peer report or replayed old acknowledgement cannot reset the offline timer. Command detects drone silence using the counterpart heartbeat deadline. Explicit command-state reconciliation still precedes lease renewal.
+
+## Phase 4 extension
+
+MissionUpdate requires schema version 1.1. Existing v1.0 payloads remain accepted. See the [communication protocol guide](../communication/MESSAGE_PROTOCOL_GUIDE.md) for channel mappings and simulated delivery semantics.

@@ -1,0 +1,5 @@
+# DELIVERY SEMANTICS
+
+At submit, resolve recipients and freeze each transmission's bytes. Per-sender pending queues and per-receiver inboxes are capped by network.capacity; overflow records which boundary rejected the attempt. Jittered attempts are serviced in due-time order. Temporary disconnection retains valid attempts through the earlier of message expiry and retention_ms. The simulator samples configured retries for lost registration/control messages and adds delay per retry. Reports use best-effort delivery. There is no end-to-end delivery guarantee.
+
+Receipts keyed by recipient and original message UUID suppress repeated inbox effects within the episode. Reuse of an ID with a different sender or byte digest is rejected. Accepted exact repeats are recognized before expiry. Ingestion and application decisions are separate: application_rejected records a handler rejection. An ACK confirms mock receiver ingestion. The scheduler does not automatically retransmit on missing ACK; outstanding acknowledgements are observable. Histories and receipt indexes live for the episode.

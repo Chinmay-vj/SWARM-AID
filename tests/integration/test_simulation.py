@@ -134,3 +134,30 @@ def test_swap_boundary_and_restriction() -> None:
     e = Engine(scenario(agents=1, terrain={"restricted": [{"x": 1, "y": 0}]}))
     e.step({"d0": 2})
     assert e.invalid == 1 and e.drones["d0"].position == (0, 0)
+
+
+def test_cli_releases_viewer_on_exception(monkeypatch: pytest.MonkeyPatch) -> None:
+    import sys
+
+    pytest.importorskip("pygame")
+    from simulation.__main__ import main
+    from simulation.visualization.renderer import Renderer
+
+    closed = []
+
+    def fail(self: Renderer, e: Engine, agent: str | None) -> None:
+        raise RuntimeError("fixture draw failure")
+
+    monkeypatch.setenv("SDL_VIDEODRIVER", "dummy")
+    monkeypatch.setattr(Renderer, "draw", fail)
+    original = Renderer.close
+
+    def close(self: Renderer) -> None:
+        original(self)
+        closed.append(True)
+
+    monkeypatch.setattr(Renderer, "close", close)
+    monkeypatch.setattr(sys, "argv", ["simulation", "--render"])
+    with pytest.raises(RuntimeError, match="fixture draw failure"):
+        main()
+    assert closed == [True]

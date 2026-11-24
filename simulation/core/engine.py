@@ -176,7 +176,7 @@ class Engine:
             self.connected += int(self.online(a))
             self.radio_samples += 1
 
-    def step(self, actions: dict[str, int]) -> None:
+    def step(self, actions: dict[str, int], *, report_hook: bool = True) -> None:
         if self.reason != "running":
             raise RuntimeError("episode ended")
         targets = {}
@@ -207,7 +207,7 @@ class Engine:
             targets[a] = p
             if move in (Move.REQUEST, Move.REPORT):
                 self.events.append(f"{self.t} {a} {move.name}")
-                if move == Move.REPORT:
+                if move == Move.REPORT and report_hook:
                     readings = self.views[a].readings
                     if readings:
                         reading = next(

@@ -40,6 +40,8 @@ def authorize(
         or proposal != lease.action
     ):
         return Move.HOLD, "rejected", "movement lacks current authority"
+    if frame.battery_fraction * 100 - 2 < settings.reserve * 100 - 1e-8:
+        return Move.HOLD, "modified", "projected move crosses reserve"
     if p is None or frame.tick_ms != now or target is None:
         return Move.HOLD, "human_review_required", "position unavailable or delayed"
     dx = (target.x > p.x) - (target.x < p.x)

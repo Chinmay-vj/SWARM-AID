@@ -142,3 +142,98 @@ def test_control_binding_and_expiry() -> None:
     a.receive(message, "operator", 0, expected_revision=0)
     assert a.cycle(e.views["d0"], 0, True) == Move.HOLD and a.revision == 1
     assert len(a.instructions) == 1
+
+
+def test_same_tick_operator_priority() -> None:
+    from agents.drone_agent.reporting import Mailbox
+    from communication.messages import HumanOverride, MissionInstruction
+
+    e = engine()
+    a = Fleet(e).agents["d0"]
+    cmd = Mailbox("command", e.mission_id, 8)
+    op = Mailbox("operator", e.mission_id, 8)
+    cmd.publish(
+        MissionInstruction(
+            message_type="mission_instruction",
+            task_id=UUID(int=4),
+            action=Action(intent=Intent.HOLD),
+        ),
+        0,
+        "d0",
+        expires_ms=100,
+    )
+    op.publish(
+        HumanOverride(message_type="human_override", action="pause", reason="test"),
+        0,
+        "d0",
+        expires_ms=100,
+    )
+    a.receive(cmd.sent[-1], "command", 0)
+    a.receive(op.sent[-1], "operator", 0, expected_revision=0)
+    assert a.override == "pause" and a.lease is None
+
+
+def test_sensor_filter_and_snapshot_isolation() -> None:
+    from agents.shared.domain import Finding
+
+    class Inspect:
+        received: SensorFrame | None = None
+
+        def perceive(self, frame: SensorFrame) -> tuple[Finding, ...]:
+            self.received = frame
+            return ()
+
+    e = engine()
+    provider = Inspect()
+    a = DroneAgent(
+        "d0", e.mission_id, Settings(modalities=("text", "imu")), (12, 10), perception=provider
+    )
+    a.cycle(e.views["d0"], 0, True)
+    assert provider.received and provider.received.cell is None
+    assert all(i.reading.cell is None for i in a.inputs.current.values())
+    events = a.snapshot()["events"]
+    assert isinstance(events, list)
+    events[-1]["action"] = "changed"
+    assert a.logs[-1]["action"] != "changed"
+
+
+def test_post_step_energy_guard() -> None:
+    e = engine()
+    a = DroneAgent("d0", e.mission_id, Settings(movement=True, reserve=0.5), (12, 10))
+    a.lease = TaskLease(
+        task_id=UUID(int=1),
+        action=Action(intent=Intent.SURVEY, target=Cell(x=1, y=0)),
+        expires_ms=100,
+    )
+    packet = e.views["d0"]
+
+    def at(battery: float) -> Move:
+        return a.cycle(
+            packet.model_copy(
+                update={"frame": packet.frame.model_copy(update={"battery_fraction": battery})}
+            ),
+            0,
+            True,
+        )
+
+    assert at(0.51) == Move.HOLD
+    assert at(0.52) == Move.EAST
+
+
+def test_future_fusion_never_enters_memory() -> None:
+    from agents.drone_agent.baselines import Fusion
+    from agents.shared.domain import Finding
+
+    class Future(Fusion):
+        def fuse(self, frame: SensorFrame, reports: tuple[Finding, ...]) -> LocalView:
+            view = super().fuse(frame, reports)
+            f = view.observations[0]
+            future = f.model_copy(
+                update={"observation": f.observation.model_copy(update={"observed_ms": 1000})}
+            )
+            return view.model_copy(update={"observations": (future,)})
+
+    e = engine()
+    a = DroneAgent("d0", e.mission_id, Settings(), (12, 10), fusion=Future())
+    assert a.cycle(e.views["d0"], 0, True) == Move.HOLD
+    assert not a.memory.items and a.health.provider_errors == 1

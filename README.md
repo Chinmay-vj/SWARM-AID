@@ -2,6 +2,18 @@
 
 Phase 2 adds a CPU-only symbolic disaster simulator, seven JSON scenarios, a PettingZoo parallel adapter and a Pygame debug viewer. The human dashboard and learned policies are future work.
 
+## Simulated communication on Windows
+
+From the project root after installing the simulator, run:
+
+```powershell
+.\.venv\Scripts\python -m simulation --communication --scenario flood_basic --agents 6 --seed 42 --headless
+.\.venv\Scripts\python -m simulation --communication --scenario flood_network_delay --agents 6 --seed 42 --headless
+.\.venv\Scripts\python -m simulation --communication --scenario flood_server_unavailable --agents 6 --seed 42 --headless --output runs
+```
+
+The switch selects Model 1 and injects a deterministic in-process transport. Each exported experiment has a simulation JSON/CSV pair, communication metrics JSON and a communication event JSONL sharing its run ID. Mock command and human endpoints retain received envelopes. See the [implementation guide](docs/communication/COMMUNICATION_IMPLEMENTATION.md) and [Phase 4 completion report](docs/PHASE_4_COMPLETION_REPORT.md).
+
 ## Model 1 on Windows
 
 Select the independent CPU mock agents explicitly. From the repository root, after installing the simulation extra:

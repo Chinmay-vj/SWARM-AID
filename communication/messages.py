@@ -119,6 +119,13 @@ class ErrorReport(Record):
     retryable: Annotated[bool, Field(strict=True)]
 
 
+class MissionUpdate(Record):
+    message_type: Literal["mission_update"]
+    revision: Annotated[int, Field(strict=True, ge=1)]
+    status: Literal["active", "paused", "ended"]
+    summary: Id
+
+
 Payload = Annotated[
     Registration
     | Heartbeat
@@ -135,13 +142,14 @@ Payload = Annotated[
     | Reconnection
     | HumanApproval
     | HumanOverride
-    | ErrorReport,
+    | ErrorReport
+    | MissionUpdate,
     Field(discriminator="message_type"),
 ]
 
 
 class Envelope(Record):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     message_id: UUID
     source: Id
     destination: Id
@@ -157,6 +165,8 @@ class Envelope(Record):
 
     @model_validator(mode="after")
     def check_consistency(self) -> Self:
+        if isinstance(self.payload, MissionUpdate) and self.schema_version != "1.1":
+            raise ValueError("mission update requires schema 1.1")
         if self.expires_ms is not None and self.expires_ms <= self.sent_ms:
             raise ValueError("expiry must follow send time")
         if (

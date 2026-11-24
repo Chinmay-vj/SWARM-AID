@@ -4,6 +4,7 @@ from typing import Literal, Self
 from pydantic import Field, NonNegativeInt, PositiveInt, model_validator
 
 from agents.shared.domain import Cell, Record, Score
+from communication.network import Conditions
 
 
 class Event(Record):
@@ -45,6 +46,7 @@ class Scenario(Record):
     loss: Score = 0
     delay: PositiveInt = 1
     outage_steps: tuple[int, ...] = ()
+    network: Conditions = Conditions()
     partition: bool = False
     terrain: dict[str, tuple[Cell, ...]] = Field(default_factory=dict)
     events: tuple[Event, ...] = ()

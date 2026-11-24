@@ -38,7 +38,7 @@ def sense(
         if rng.random() < cfg.dropout:
             continue
 
-        def add(value: str, p: Point, score: float = 1.0, modality: str = mode) -> None:
+        def add(value: str, p: Point | None, score: float = 1.0, modality: str = mode) -> None:
             uid = uuid5(NAMESPACE_OID, f"{agent}/{t}/{modality}/{len(readings)}")
             readings.append(
                 Reading(
@@ -50,7 +50,7 @@ def sense(
                         artifact_key=uid.hex,
                     ),
                     value=value,
-                    cell=Cell(x=p[0], y=p[1]),
+                    cell=Cell(x=p[0], y=p[1]) if p is not None else None,
                     confidence=score,
                 )
             )
@@ -76,7 +76,10 @@ def sense(
                 if (p in people and detected) or (p not in people and spurious):
                     add("possible_human", pos if noisy else p, 0.6)
         else:
-            add({"gps": "position", "imu": heading, "text": "survey permitted cells"}[mode], pos)
+            add(
+                {"gps": "position", "imu": heading, "text": "survey permitted cells"}[mode],
+                pos if mode == "gps" else None,
+            )
     cell = Cell(x=pos[0], y=pos[1]) if any(r.evidence.modality == "gps" for r in readings) else None
     frame = SensorFrame(
         agent_id=agent,

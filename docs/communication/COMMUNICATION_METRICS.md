@@ -1,0 +1,5 @@
+# COMMUNICATION METRICS
+
+JSONL events carry simulated milliseconds, mission, sender, recipient, message ID, reason and encoded-byte count. Missing IDs on link transitions and malformed input are expected. The companion communication JSON shares the experiment file stem. generated counts submissions. intended_pairs counts distinct authorized recipient/ID pairs admitted for scheduling. delivered counts unique inbox admissions. delivery_ratio divides admissions by intended pairs. rejected counts validation/authorization failures. dropped counts lost attempts, overflow counts capacity rejections, expired counts expired copies, duplicate counts suppressed copies and acknowledged counts matched receipts.
+
+bytes sums serialized JSON bytes for transmission attempts including fan-out and retries. Delay summaries use first inbox admission minus creation time in mission milliseconds (mean, median and nearest-rank p95). Availability divides available endpoint samples by all endpoint samples. recovery_ms measures physical link restoration delay for each recovered outage. pending counts scheduled copies at the last barrier. No post-horizon draining occurs.

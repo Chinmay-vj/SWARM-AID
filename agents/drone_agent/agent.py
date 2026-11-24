@@ -1,4 +1,5 @@
 from collections import deque
+from copy import deepcopy
 from uuid import UUID, uuid5
 
 from agents.drone_agent.baselines import Fusion, MockPerception, Planner, Rules
@@ -67,17 +68,42 @@ class DroneAgent:
         self.logs: deque[dict[str, object]] = deque(maxlen=settings.capacity)
         self.lease: TaskLease | None = None
         self.override = ""
+        self.peer_status: deque[Envelope] = deque(maxlen=settings.capacity)
         self.last_control_ms = -1
+        self.last_override_ms = -1
         self.life.change(DroneState.READY, 0, "initialized")
         self.mail.publish(
             Registration(message_type="registration", role="drone", session_id=self.mail.session), 0
         )
 
     def receive(
-        self, msg: Envelope, principal: str, now: int, *, expected_revision: int | None = None
+        self,
+        msg: Envelope,
+        principal: str,
+        now: int,
+        *,
+        expected_revision: int | None = None,
+        routed_group: bool = False,
     ) -> None:
         if (
-            (msg.source, msg.destination, msg.mission_id) != (principal, self.owner, self.mission)
+            (msg.source, msg.destination, msg.mission_id)
+            != (
+                principal,
+                "peers"
+                if routed_group
+                and isinstance(
+                    msg.payload,
+                    (
+                        EnvironmentalObservation,
+                        HazardDetection,
+                        PossibleHumanDetection,
+                        AgentHealth,
+                        Heartbeat,
+                    ),
+                )
+                else self.owner,
+                self.mission,
+            )
             or msg.sent_ms > now
             or msg.expires_ms is not None
             and now >= msg.expires_ms
@@ -88,13 +114,15 @@ class DroneAgent:
             expected = "operator" if isinstance(payload, HumanOverride) else "command"
             if (
                 principal != expected
-                or msg.sent_ms <= self.last_control_ms
+                or isinstance(payload, MissionInstruction)
+                and (msg.sent_ms <= self.last_control_ms or self.override == "pause")
                 or self.override == "end"
             ):
                 raise ValueError("unauthorized or outdated control")
             if isinstance(payload, HumanOverride):
-                if expected_revision != self.revision:
+                if expected_revision != self.revision or msg.sent_ms < self.last_override_ms:
                     raise ValueError("override revision mismatch")
+                self.last_override_ms = msg.sent_ms
                 self.revision += 1
                 self.override = payload.action
                 self.lease = None
@@ -103,7 +131,9 @@ class DroneAgent:
                     task_id=payload.task_id, action=payload.action, expires_ms=msg.expires_ms
                 )
             self.instructions.append(msg)
-            self.last_control_ms = msg.sent_ms
+            self.last_control_ms = max(self.last_control_ms, msg.sent_ms)
+        elif isinstance(payload, (AgentHealth, Heartbeat)):
+            self.peer_status.append(msg)
         elif isinstance(
             payload, (EnvironmentalObservation, HazardDetection, PossibleHumanDetection)
         ):
@@ -134,8 +164,8 @@ class DroneAgent:
             "state": self.life.state.value,
             "health": vars(self.health).copy(),
             "world": self.world.snapshot(),
-            "events": list(self.logs),
-            "transitions": list(self.life.history),
+            "events": deepcopy(list(self.logs)),
+            "transitions": deepcopy(list(self.life.history)),
             "instructions": [m.model_dump(mode="json") for m in self.instructions],
             "reports": [m.model_dump(mode="json") for m in self.mail.sent],
         }
@@ -152,7 +182,14 @@ class DroneAgent:
                 self.health.invalid_inputs += 1
                 raise
             frame = packet.frame.model_copy(
-                update={"samples": tuple(i.reading.evidence for i in self.inputs.current.values())}
+                update={
+                    "samples": tuple(i.reading.evidence for i in self.inputs.current.values()),
+                    "cell": packet.frame.cell
+                    if any(
+                        i.reading.evidence.modality == "gps" for i in self.inputs.current.values()
+                    )
+                    else None,
+                }
             )
             found = self.perception.perceive(frame)
             if any(
@@ -162,11 +199,16 @@ class DroneAgent:
             ):
                 raise ValueError("unresolved provider evidence")
             view = self.fusion.fuse(frame, found)
-            if view.agent_id != self.owner or any(
-                e.evidence_id not in self.inputs.current
-                or self.inputs.current[e.evidence_id].reading.evidence != e
-                for f in view.observations
-                for e in f.observation.evidence
+            if (
+                view.agent_id != self.owner
+                or view.tick_ms != frame.tick_ms
+                or any(f.observation.observed_ms > now for f in view.observations)
+                or any(
+                    e.evidence_id not in self.inputs.current
+                    or self.inputs.current[e.evidence_id].reading.evidence != e
+                    for f in view.observations
+                    for e in f.observation.evidence
+                )
             ):
                 raise ValueError("fusion scope or provenance mismatch")
             for f in view.observations:

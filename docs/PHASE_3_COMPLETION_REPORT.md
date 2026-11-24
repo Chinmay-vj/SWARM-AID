@@ -26,3 +26,7 @@ A subset of the final d5 cycle log from the six-agent run:
 Ready for Phase 4 mock transport integration. Outboxes retain a bounded history of envelopes; publication does not demonstrate receipt. The human_review destination carries evidence for review. The principal and mission revision supplied by the test harness are trusted; the future transport must authenticate them. Default agents remain stationary without authorized movement. Offline movement is conservatively held. The simulator's measured coverage is a software fixture outcome.
 
 Perception resolves symbolic readings. Video, actual media, trained models, calibrated uncertainty, independent sensor timing, durable checkpoints and distributed replay remain future work. Memory restoration covers retained findings. The larger agent snapshot is diagnostic and should never authorize resuming an old lease. No data collection, training, physical drone execution, central command agent or full communications service was added.
+
+## Independent Phases 1–4 audit
+
+The Model 1 audit corrected operator precedence, recovery lease freshness, projected battery reserve, GPS modality isolation, future-dated fusion output and snapshot isolation. The combined suite passed 89 cases on Windows CPython 3.12.10. See the [audit findings and execution evidence](PHASE_4_AUDIT_REPORT.md).
