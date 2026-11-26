@@ -31,3 +31,6 @@ datasets/**
 *.ckpt
 *.gguf
 *.part
+
+# Local raw payloads are never repository inputs.
+/raw/

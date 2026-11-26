@@ -1,0 +1,101 @@
+{
+  "schema_version": "phase11g-successor-proposal-1.0",
+  "proposal_id": "phase11g-esc50-pc2-successor-v1",
+  "status": "PROPOSED_PENDING_OWNER_REVIEW",
+  "training_approved": false,
+  "authorization_records": [],
+  "historical_release": {
+    "path": "D:/SWARM-AID-DATA/manifests/phase10h-v1/release.json",
+    "sha256": "81b0ed436ce8e2bc3ec260f85a87dc89c28f95dc585e3309d8ae3e88c57e11b8",
+    "verification_status": "INCOMPLETE_MISSING_EVIDENCE_AND_UNRESOLVED_CODE_SUCCESSORS",
+    "missing_path": "simulation/field-v1/manifest.json",
+    "missing_sha256": "29a8b1f3d8eeb360b08b7f88dfbe215898580d2d380bb3e8d8d677e3bfa66e5a",
+    "historical_records_must_remain_unchanged": true
+  },
+  "proposed_scope": {
+    "dataset_id": "esc50",
+    "task_id": "audio event classification",
+    "dataset_version": null,
+    "publisher_version_binding": "UNRESOLVED",
+    "scope": "Independent ESC-50 local audio release, not verification or replacement of the complete Phase 10H release",
+    "excluded": [
+      "native simulation evidence",
+      "Model 2",
+      "other datasets",
+      "cross-modal fusion",
+      "physical control"
+    ],
+    "requested_usage_scopes": [
+      "local_training",
+      "local_evaluation",
+      "retention"
+    ],
+    "cloud_processing": "not_authorized",
+    "redistribution": "not_authorized"
+  },
+  "reused_evidence": {
+    "raw_verification": "docs/PHASE_10J_COMPLETION_REPORT.md",
+    "per_file_ledger": "D:/SWARM-AID-DATA/manifests/phase10i-a-raw-v1/ESC-50.jsonl",
+    "candidate_descriptor": "D:/SWARM-AID-DATA/manifests/phase10i-b1-c1-v1/candidate_manifests/esc50-official-folds-v1.json",
+    "candidate_descriptor_sha256": "deda3d2cb8909210a995f682edc73d3086885158865b5c0fe5f96813e5926aef",
+    "metadata_ledger_sha256": {
+      "ESC-50-master/meta/esc50.csv": "ca660da60191a97de289983a05821c9382d852a38a2ba8428980816b68cf6246",
+      "ESC-50-master/LICENSE": "f6aec3a3283a2efdcbb1feff334adad7ab17c097bdec0cbb4eebdb9e16886074",
+      "ESC-50-master/README.md": "60a3ae8cecca8488f5381ef54f302396dbd1b0d82ae0d14afc92a4bfd6b34501"
+    }
+  },
+  "proposed_partitions": {
+    "train_folds": [
+      1,
+      2,
+      3
+    ],
+    "validation_folds": [
+      4
+    ],
+    "reserved_test_folds": [
+      5
+    ],
+    "train_count": 1196,
+    "validation_count": 398,
+    "test_count": 397,
+    "excluded_recording_ids": [
+      "131943",
+      "134049",
+      "209698",
+      "234879"
+    ]
+  },
+  "open_decisions": [
+    "Accept or reject a separately governed ESC-50-only successor with the missing native evidence explicitly outside scope; historical completeness remains unresolved.",
+    "Bind exact local files to reviewed source/release evidence; local v2.0.0 changelog does not prove an exact checkout.",
+    "Determine rights/privacy and retained-clip terms, including 60 CC-Sampling+ tags and the unmatched test-clip attribution key.",
+    "Approve or revise the proposed 100-item train/validation review protocol, then complete independent reviews and adjudication.",
+    "After reviewed operational/target manifests exist, issue exact schema 1.1 authorization and a separate training start decision."
+  ],
+  "unmatched_attribution": {
+    "filename": "5-141683-A-35.wav",
+    "partition": "reserved_test_fold_5",
+    "nearby_license_key": "5-141683-Ad.ogg",
+    "decision": null,
+    "instruction": "Confirm mapping from source evidence or retain as unresolved; do not rename files or infer equivalence."
+  },
+  "required_gates_unchanged": [
+    "registry version/task/taxonomy/governance",
+    "candidate/records binding",
+    "operational/target canonical manifest checksums",
+    "local-training and local-evaluation scope",
+    "independent review evidence",
+    "asset integrity",
+    "group/split isolation",
+    "reserved seeds 42-46"
+  ],
+  "owner_review": {
+    "decision": null,
+    "owner_identity": null,
+    "reviewed_at": null,
+    "rationale": null,
+    "evidence_refs": []
+  },
+  "not_a_training_manifest_or_authorization": true
+}

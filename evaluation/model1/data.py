@@ -3,7 +3,7 @@
 import importlib
 import random
 from collections.abc import Mapping, Sequence
-from functools import partial
+from functools import lru_cache, partial
 from pathlib import Path
 from typing import Any, Literal, cast
 
@@ -21,7 +21,13 @@ from evaluation.data.training_partition import approved_training
 from evaluation.data.validation import validate
 from evaluation.model1.models import TaskKind
 
-DatasetSplit = Literal["train", "validation"]
+DatasetSplit = Literal["train", "validation", "test"]
+
+
+def require_active_source(dataset_id: str) -> None:
+    """Phase 10J exclusions apply even when a caller supplies a historical registry."""
+    if dataset_id.casefold() in {"heridal", "sard"}:
+        raise ValueError("dataset excluded from active Model 1 scope")
 
 
 class TaskDataConfig:
@@ -72,6 +78,7 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             target_manifest.dataset_version,
         ):
             raise ValueError("task input and target dataset versions differ")
+        require_active_source(input_manifest.dataset_id)
         auth = require_training_authorization(
             registry,
             input_manifest,
@@ -107,7 +114,7 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             )
             rows = [sample for batch in approved for sample in batch]
         else:
-            rows = [sample for sample in input_manifest.samples if sample.split == "validation"]
+            rows = [sample for sample in input_manifest.samples if sample.split == split]
         self._dataset = next(
             dataset
             for dataset in registry.datasets
@@ -141,14 +148,58 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
                 raise ValueError("mask mapping must describe at least two source values")
         for sample in self.rows:
             self._validate_task_sample(sample, target_rows[sample.sample_id])
+        self._sensor_values: Tensor | None = None
+        self._sensor_available: Tensor | None = None
+        self._normalized_sensor_values: Tensor | None = None
+        self._sensor_targets: Tensor | None = None
+        if config.task.startswith("sensor_"):
+            sensor_windows = []
+            source_indices: dict[Path, Mapping[int, Mapping[str, float]]] = {}
+            for sample in self.rows:
+                if sample.asset is None:
+                    raise ValueError("sensor sample is missing an operational asset")
+                source_path = self._asset_path(sample.asset.path)
+                source_index = source_indices.get(source_path)
+                if source_index is None:
+                    source_index = _sensor_source_index(source_path)
+                    source_indices[source_path] = source_index
+                sensor_windows.append(_sensor_window_from_index(source_index, sample))
+            self._sensor_values = torch.stack([window[0] for window in sensor_windows])
+            self._sensor_available = torch.stack([window[1] for window in sensor_windows])
+            if config.task == "sensor_regression":
+                sensor_targets = []
+                for sample in self.rows:
+                    annotation = target_rows[sample.sample_id].annotation
+                    if annotation is None:
+                        raise ValueError("sensor regression sample is missing a target")
+                    sensor_targets.append(annotation.numeric_targets)
+                self._sensor_targets = torch.tensor(sensor_targets, dtype=torch.float32)
 
     def __len__(self) -> int:
         return len(self.rows)
 
     def __getitem__(self, index: int) -> tuple[Any, Any]:
+        x: Any
+        y: Any
         sample = self.rows[index]
         target_sample = self._targets[sample.sample_id]
-        x, y = self._load_sample(sample, target_sample)
+        if self._sensor_values is not None and self._sensor_available is not None:
+            values = (
+                self._normalized_sensor_values[index]
+                if self._normalized_sensor_values is not None
+                else self._sensor_values[index]
+            )
+            x = {"values": values, "available": self._sensor_available[index]}
+            annotation = target_sample.annotation
+            if annotation is None:
+                raise ValueError("authorized sensor target is missing an annotation")
+            y = (
+                self._sensor_targets[index]
+                if self._sensor_targets is not None
+                else torch.tensor(self._class_index(annotation.labels[0]), dtype=torch.int64)
+            )
+        else:
+            x, y = self._load_sample(sample, target_sample)
         if (
             self.augmentation_enabled
             and self._config.horizontal_flip_probability
@@ -166,7 +217,7 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
                 y["boxes"][:, [0, 2]] = self._config.image_size - y["boxes"][:, [2, 0]]
             elif self._config.task == "semantic_segmentation":
                 y = y.flip(-1)
-        if self.normalization is not None:
+        if self.normalization is not None and self._normalized_sensor_values is None:
             mean, scale = self.normalization
             if isinstance(x, Tensor):
                 x = (x - mean.reshape(-1, 1, 1)) / scale.reshape(-1, 1, 1)
@@ -175,6 +226,18 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
                 normalized = (values - mean) / scale
                 x["values"] = torch.where(available, normalized, torch.zeros_like(normalized))
         return x, y
+
+    def previous_sensor_measurement(self, index: int, measurement: str) -> float | None:
+        if self._config.task != "sensor_regression" or not measurement.strip():
+            raise ValueError("previous measurements require a named sensor-regression target")
+        sample = self.rows[index]
+        if sample.asset is None or not sample.source_rows:
+            raise ValueError("sensor sample has no historical source row")
+        source_index = _sensor_source_index(self._asset_path(sample.asset.path))
+        source_row = source_index.get(sample.source_rows[-1])
+        if source_row is None:
+            raise ValueError("last historical sensor row is missing from the source index")
+        return source_row.get(measurement)
 
     def set_normalization(self, mean: Tensor, scale: Tensor) -> None:
         if self.normalization is not None or mean.shape != scale.shape:
@@ -191,6 +254,11 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
         if not torch.isfinite(mean).all() or not torch.isfinite(scale).all() or (scale <= 0).any():
             raise ValueError("normalization statistics must be finite with positive scale")
         self.normalization = (mean.detach().clone(), scale.detach().clone())
+        if self._sensor_values is not None and self._sensor_available is not None:
+            normalized = (self._sensor_values - mean) / scale
+            self._normalized_sensor_values = torch.where(
+                self._sensor_available, normalized, torch.zeros_like(normalized)
+            )
 
     def _validate_task_sample(self, sample: Sample, target: Sample) -> None:
         ann = target.annotation
@@ -322,6 +390,7 @@ class AuthorizedFusionDataset(Dataset[tuple[Any, Tensor]]):
             raise ValueError("invalid fusion image size, batch size or worker count")
         if not 0 <= modality_dropout_probability < 1:
             raise ValueError("modality dropout probability must be in [0, 1)")
+        require_active_source(input_manifest.dataset_id)
         authorization = require_training_authorization(
             registry,
             input_manifest,
@@ -631,28 +700,45 @@ def _mask_tensor(
 
 
 def _sensor_window(path: Path, sample: Sample) -> tuple[Tensor, Tensor]:
+    return _sensor_window_from_index(_sensor_source_index(path), sample)
+
+
+def _sensor_window_from_index(
+    rows_by_line: Mapping[int, Mapping[str, float]], sample: Sample
+) -> tuple[Tensor, Tensor]:
     selected_rows = set(sample.source_rows)
-    values_by_row: dict[int, dict[str, float]] = {}
-    rows_seen: set[int] = set()
-    source_rows = importlib.import_module("evaluation.data.preprocessing").sensor_rows(path)
-    for row in source_rows:
-        line = int(row["line"])
-        if line not in selected_rows:
-            continue
-        rows_seen.add(line)
-        measurement = str(row["measurement"])
-        value = row["standardized"]
-        if value is not None:
-            values_by_row.setdefault(line, {})[measurement] = float(value)
+    rows_seen = selected_rows.intersection(rows_by_line)
     if rows_seen != selected_rows:
         raise ValueError("sensor window source rows are missing")
     values: list[list[float]] = []
     available: list[list[bool]] = []
     for line in sample.source_rows:
-        row = values_by_row.get(line, {})
+        row = rows_by_line.get(line, {})
         values.append([row.get(name, 0.0) for name in sample.sensor_feature_names])
         available.append([name in row for name in sample.sensor_feature_names])
     return torch.tensor(values, dtype=torch.float32), torch.tensor(available, dtype=torch.bool)
+
+
+def _sensor_source_index(path: Path) -> Mapping[int, Mapping[str, float]]:
+    source = path.resolve()
+    stat = source.stat()
+    return _cached_sensor_source_index(str(source), stat.st_size, stat.st_mtime_ns)
+
+
+@lru_cache(maxsize=4)
+def _cached_sensor_source_index(
+    path: str, size: int, modified_ns: int
+) -> Mapping[int, Mapping[str, float]]:
+    del size, modified_ns
+    result: dict[int, dict[str, float]] = {}
+    source_rows = importlib.import_module("evaluation.data.preprocessing").sensor_rows(Path(path))
+    for row in source_rows:
+        line = int(row["line"])
+        measurements = result.setdefault(line, {})
+        value = row["standardized"]
+        if value is not None:
+            measurements[str(row["measurement"])] = float(value)
+    return result
 
 
 def _collate_task(

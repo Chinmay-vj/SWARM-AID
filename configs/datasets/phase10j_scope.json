@@ -1,0 +1,198 @@
+{
+  "schema_version": "phase10j-1.0",
+  "decision": "NO_GO",
+  "registry": "configs/datasets/registry.phase10j-v1.json",
+  "root": "D:/SWARM-AID-DATA",
+  "retained_sources": [
+    "FloodNet",
+    "RescueNet",
+    "FLAME",
+    "WiSARD",
+    "ESC-50",
+    "Smoke",
+    "UCI",
+    "USGS"
+  ],
+  "excluded_dataset_ids": [
+    "heridal",
+    "sard"
+  ],
+  "reserved_evaluation_seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "training_approved": false,
+  "model2_scope": "unchanged",
+  "tasks": [
+    {
+      "task": "RGB person detection",
+      "sources": [],
+      "status": "BLOCKED",
+      "blockers": [
+        "HERIDAL and SARD excluded from active scope; no retained validated RGB person-box supervision",
+        "WiSARD and RescueNet are not approved replacement detection supervision"
+      ]
+    },
+    {
+      "task": "RGB fire classification",
+      "sources": [
+        "FLAME"
+      ],
+      "status": "BLOCKED",
+      "candidate_manifest": "candidate_manifests/flame-fire-classification-v1.json",
+      "blockers": [
+        "491 training frames near official test frames excluded",
+        "Parent video groups unavailable",
+        "Governance pending"
+      ]
+    },
+    {
+      "task": "FloodNet semantic segmentation",
+      "sources": [
+        "FloodNet"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Site/capture groups unavailable",
+        "Governance pending"
+      ]
+    },
+    {
+      "task": "RescueNet semantic segmentation",
+      "sources": [
+        "RescueNet"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Site/capture groups unavailable",
+        "Dataset terms and privacy review pending"
+      ]
+    },
+    {
+      "task": "RescueNet infrastructure damage assessment",
+      "sources": [
+        "RescueNet"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Damage-grade semantics require independent review",
+        "Site groups and governance unresolved"
+      ]
+    },
+    {
+      "task": "FLAME fire segmentation",
+      "sources": [
+        "FLAME"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "2,003 masks have no verified image pair"
+      ]
+    },
+    {
+      "task": "WiSARD thermal perception",
+      "sources": [
+        "WiSARD"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "1,275 flagged annotations unadjudicated",
+        "11,542 missing sidecars",
+        "Display-coded imagery is not calibrated temperature"
+      ]
+    },
+    {
+      "task": "WiSARD RGB-thermal pairing",
+      "sources": [
+        "WiSARD"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Zero verified pairs",
+        "Synchronization, alignment, calibration, and capture IDs unavailable"
+      ]
+    },
+    {
+      "task": "ESC-50 environmental sound classification",
+      "sources": [
+        "ESC-50"
+      ],
+      "status": "BLOCKED",
+      "candidate_manifest": "candidate_manifests/esc50-official-folds-v1.json",
+      "blockers": [
+        "Nine clips in four cross-fold recording groups excluded",
+        "Clip-specific terms and attribution require review"
+      ]
+    },
+    {
+      "task": "Smoke Detection IoT time-series classification",
+      "sources": [
+        "Smoke"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Five runs reduce to three repeated sensor-signature groups",
+        "Run identity and label provenance unresolved"
+      ]
+    },
+    {
+      "task": "UCI next-hour CO concentration",
+      "sources": [
+        "UCI"
+      ],
+      "status": "BLOCKED",
+      "candidate_manifest": "candidate_manifests/uci-co-next-hour-24h-v1.json",
+      "blockers": [
+        "Temporal-only candidate does not establish site generalization",
+        "Source rights statements require reconciliation"
+      ]
+    },
+    {
+      "task": "USGS interval hydrology",
+      "sources": [
+        "USGS"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "36 overlapping interval summaries are not a continuous series",
+        "Flood-event labels and split assignment unavailable"
+      ]
+    },
+    {
+      "task": "Native Model 1 symbolic observation processing",
+      "sources": [
+        "native Model 1"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Native and protected records were not accessed",
+        "Independent human evaluation protocol pending"
+      ]
+    },
+    {
+      "task": "Native Model 1 structured report generation",
+      "sources": [
+        "native Model 1"
+      ],
+      "status": "BLOCKED",
+      "blockers": [
+        "Delivery-selected reports are not independent targets",
+        "Private pilot and alert-journal data remain outside scope"
+      ]
+    }
+  ],
+  "source_paths": {
+    "FloodNet": "raw/rgb/FloodNet",
+    "RescueNet": "raw/rgb/RescueNet",
+    "FLAME": "raw/rgb/FLAME",
+    "WiSARD": "raw/multimodal/WiSARDv1",
+    "ESC-50": "raw/audio/audio/ESC-50-master",
+    "Smoke": "raw/sensors/sensors/smoke_detection_iot.csv",
+    "UCI": "raw/sensors/sensors/AirQualityUCI.csv",
+    "USGS": "raw/sensors/sensors/USGSWater.csv"
+  },
+  "path_mapping_status": "inspection_only_not_an_operational_release"
+}

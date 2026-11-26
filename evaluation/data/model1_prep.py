@@ -719,7 +719,7 @@ def build_uci_windows(
         if any(split_by_timestamp[value] != partition for value in row_times):
             time_gaps["partition_boundary_purge"] += 1
             continue
-        lines = tuple(int(item["line"]) for item in feature_rows) + (int(row["line"]),)
+        lines = tuple(int(item["line"]) for item in feature_rows)
         for line in lines:
             cross_partition_rows[line].add(partition)
         missing_features = sum(

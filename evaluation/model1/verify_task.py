@@ -11,6 +11,7 @@ from evaluation.data.release_authorization import (
     require_training_authorization,
 )
 from evaluation.data.validation import validate
+from evaluation.model1.data import require_active_source
 
 
 def verify(
@@ -30,6 +31,7 @@ def verify(
     input_manifest = Manifest.model_validate_json(input_manifest_path.read_bytes())
     target_manifest = Manifest.model_validate_json(target_manifest_path.read_bytes())
     bundle = AuthorizationBundle.model_validate_json(authorization_bundle_path.read_bytes())
+    require_active_source(input_manifest.dataset_id)
     authorization = require_training_authorization(
         registry,
         input_manifest,

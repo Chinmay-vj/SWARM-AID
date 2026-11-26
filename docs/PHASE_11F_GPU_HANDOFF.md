@@ -1,8 +1,10 @@
 # Phase 11F — PC2 GPU handoff
 
-**Status: prepared, not GPU-verified.** This document describes compatibility
-checks and synthetic smoke/profile runs only. It does not authorize or start
-training.
+**Status: synthetic GPU verification completed on PC2, 2026-11-26.**
+The [Phase 11A-F completion report](PHASE_11A_F_COMPLETION_REPORT.md) records
+54 passing component profiles, measured memory and throughput, and current
+initial configurations. The commands below are retained as setup guidance;
+they do not authorize actual dataset training.
 
 ## Target and storage
 
@@ -10,7 +12,8 @@ Target supplied by the operator: Windows, Python 3.12.10, NVIDIA RTX PRO 4500
 Blackwell (32 GB VRAM), 64 GB RAM, Xeon 636 (12 cores / 24 threads), about
 1.7 TB available storage, Torch 2.11.0+cu128, TorchVision 0.26.0, and
 TorchAudio 2.11.0. Basic CUDA computation was reported as verified by the
-operator; this checkout has not independently verified that hardware.
+operator; the subsequent PC2 synthetic profile verified CUDA execution on
+the RTX PRO 4500 Blackwell with Torch 2.11.0+cu128.
 
 Use the storage policy:
 
@@ -92,9 +95,10 @@ not produce an authorized status for those datasets.
 
 ## Handoff boundary
 
-- PC1 CPU-only dependencies and synthetic smoke were verified. PC2 CUDA,
-  peak-memory behavior, and the reported target configuration remain
-  unverified until the operator runs the commands above.
+- PC1 CPU-only dependencies and synthetic smoke were verified. Subsequent
+  PC2 component profiles verified CUDA, FP32/BF16/FP16 and peak allocation
+  for batches 2 and 8 at the documented synthetic shapes. Larger inputs and
+  maximum hardware batch sizes remain unverified.
 - Do not download data or weights, modify raw or frozen releases, expose test
   data, train a model, or alter authorization on PC2 as part of this handoff.
 - Real-data training remains NO-GO until the independent reviews, governance,

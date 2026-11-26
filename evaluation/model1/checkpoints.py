@@ -10,7 +10,7 @@ import platform
 import random
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, cast
 
@@ -34,6 +34,7 @@ class CheckpointInfo:
     best_validation_metric: float
     artifact_kind: str
     authorization_id: str | None
+    loop_state: dict[str, Any] = field(default_factory=dict)
 
 
 def save_checkpoint(
@@ -50,6 +51,7 @@ def save_checkpoint(
     model_config: dict[str, Any],
     training_config: dict[str, Any],
     context: TrainingContext,
+    loop_state: dict[str, Any] | None = None,
 ) -> CheckpointInfo:
     if not _safe_filename(filename) or epoch < 1 or global_step < 0:
         raise ValueError("invalid checkpoint filename or training position")
@@ -81,6 +83,7 @@ def save_checkpoint(
         "scheduler_state": scheduler.state_dict() if scheduler is not None else None,
         "amp_state": scaler.state_dict(),
         "rng_state": _rng_state(),
+        "loop_state": loop_state or {},
     }
     buffer = io.BytesIO()
     torch.save(payload, buffer)
@@ -136,7 +139,7 @@ def restore_checkpoint(
     actual_sha256 = _sha256(resolved)
     if actual_sha256 != expected_sha256:
         raise ValueError("checkpoint checksum mismatch")
-    payload = torch.load(resolved, map_location=device, weights_only=True)
+    payload = torch.load(resolved, map_location="cpu", weights_only=True)
     if not isinstance(payload, dict) or payload.get("schema_version") != CHECKPOINT_SCHEMA:
         raise ValueError("unsupported checkpoint schema")
     expected_context_values = {
@@ -203,6 +206,7 @@ def restore_checkpoint(
         float(best_metric),
         expected_context.artifact_kind,
         expected_context.authorization_id,
+        payload.get("loop_state", {}),
     )
 
 
@@ -233,6 +237,12 @@ def _environment() -> dict[str, str | None]:
         "torchvision": versions["torchvision"],
         "torchaudio": versions["torchaudio"],
         "git_commit": _git_commit(),
+        "source_sha256": hashlib.sha256(
+            b"".join(
+                path.name.encode() + path.read_bytes()
+                for path in sorted(Path(__file__).parent.glob("*.py"))
+            )
+        ).hexdigest(),
     }
 
 

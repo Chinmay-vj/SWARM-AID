@@ -1,0 +1,76 @@
+{
+  "schema_version": "phase11-model1-task-profiles-1.0",
+  "scope": "configs/datasets/phase10j_scope.json",
+  "registry": "configs/datasets/registry.phase10j-v1.json",
+  "excluded_sources": [
+    "heridal",
+    "sard"
+  ],
+  "profiles": {
+    "floodnet": {
+      "task": "semantic_segmentation",
+      "blockers": [
+        "Reviewed mask taxonomy and site-independent release required"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "rescuenet": {
+      "task": "semantic_segmentation",
+      "blockers": [
+        "Reviewed person/damage masks and site holdout required; no RGB box supervision inferred"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "flame": {
+      "task": "image_classification",
+      "blockers": [
+        "Parent-video groups required; retain 491 near-test exclusions; fire masks remain unpaired"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "wisard": {
+      "task": "thermal_classification",
+      "blockers": [
+        "Reviewed thermal taxonomy required; display pixels are not temperature; zero verified RGB/thermal pairs"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "esc50": {
+      "task": "audio_classification",
+      "blockers": [
+        "Preserve official recording groups and nine-clip exclusions; no distress labels"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "smoke-detection-iot": {
+      "task": "sensor_classification",
+      "blockers": [
+        "Define run-independent splits, features, horizon and reviewed alarm provenance"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "uci-air-quality": {
+      "task": "sensor_regression",
+      "blockers": [
+        "Explicit CO target/horizon/units and purged temporal partitions required"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    },
+    "usgs-water-data": {
+      "task": "sensor_regression",
+      "blockers": [
+        "Interval summaries only; no continuous-series or flood-event targets are authorized"
+      ],
+      "status": "BLOCKED",
+      "training_approved": false
+    }
+  },
+  "notes": "Model head sizes and label mappings must come from reviewed operational/target manifests, never this task catalog."
+}

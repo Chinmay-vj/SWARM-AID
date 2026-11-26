@@ -4,7 +4,7 @@
 
 | Model | Learning task | Data | Status | Approved records | Blocking condition |
 |---|---|---|---|---:|---|
-| 1 | RGB person detection | HERIDAL, SARD | BLOCKED | 0 | Parent-flight/site grouping and empty-annotation review; rights and privacy approval. |
+| 1 | RGB person detection | No retained validated detection source | BLOCKED | 0 | HERIDAL and SARD excluded in Phase 10J; no approved replacement supervision. |
 | 1 | RGB fire classification | FLAME | BLOCKED | 0 | 491 train frames are near test frames; recover parent videos and group splits; rights approval. |
 | 1 | Semantic segmentation | FloodNet, RescueNet | BLOCKED | 0 | Site/event independence, source label review and rights/privacy approval. |
 | 1 | Fire segmentation | FLAME | BLOCKED | 0 | 2,003 masks do not have verified image pairs. |
@@ -43,3 +43,27 @@ Human approval, source rights/privacy decisions, verified parent groups and inde
 No task disposition changed. The 20 learning tasks remain `BLOCKED` with zero
 approved records. The Phase 10I-A registry and safeguards audit did not approve
 any dataset; see the [Phase 10I-A completion report](../PHASE_10I_A_COMPLETION_REPORT.md).
+
+## Phase 10J active scope
+
+The active selection is `configs/datasets/phase10j_scope.json`, using
+`registry.phase10j-v1.json` and dataset root `D:/SWARM-AID-DATA`. Retain
+FloodNet, RescueNet, FLAME, WiSARD, ESC-50, Smoke Detection IoT, UCI Air
+Quality and USGS Water. HERIDAL and SARD are excluded; their historical
+indexes, review items and frozen releases remain unchanged. Other registry
+entries preserve historical and Model 2 metadata; they do not expand the
+eight-source active Model 1 selection. The historical 20-task plan and the
+14-task detailed Model 1 plan use different granularity; all remain blocked.
+
+RGB person detection has no retained validated person-box training release.
+RescueNet person segmentation labels and WiSARD thermal annotations do not
+establish an approved RGB detection substitute. Human presence, counting,
+localization and rescue claims remain unsupported until task-specific
+supervision and independent review are validated. No box conversion or
+new labels are inferred. All earlier leakage exclusions remain mandatory.
+
+PC2 relocation is not a new authorized dataset version. Revised operational
+manifests must bind verified current paths, exact versions, partitions and
+checksums, with new matching task/use-scope authorizations. Old candidate
+paths and authorization records cannot automatically approve a successor.
+See [Phase 10J verification](../PHASE_10J_COMPLETION_REPORT.md).

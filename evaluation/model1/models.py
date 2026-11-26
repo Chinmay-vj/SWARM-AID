@@ -55,7 +55,13 @@ class AudioClassifier(nn.Module):
         )
 
     def forward(self, log_mel: Tensor) -> Tensor:
-        if log_mel.ndim != 4 or log_mel.shape[1] != 1:
+        if (
+            log_mel.ndim != 4
+            or log_mel.shape[1] != 1
+            or min(log_mel.shape) < 1
+            or min(log_mel.shape[2:]) < 4
+            or not torch.isfinite(log_mel).all()
+        ):
             raise ValueError("audio input must have shape [batch, 1, time, mel_bins]")
         return cast(Tensor, self.classifier(self.features(log_mel)))
 
@@ -83,6 +89,8 @@ class SensorSequenceModel(nn.Module):
             )
         if values.shape[2] != self.feature_count or available.dtype != torch.bool:
             raise ValueError("sensor feature count or availability dtype mismatch")
+        if min(values.shape) < 1 or not torch.isfinite(values[available]).all():
+            raise ValueError("available sensor values must be finite and dimensions nonempty")
         cleaned = torch.where(available, values, torch.zeros_like(values))
         encoded, _ = self.encoder(torch.cat((cleaned, available.to(values.dtype)), dim=2))
         valid = available.any(dim=(1, 2))
@@ -120,12 +128,15 @@ class MissingAwareFusion(nn.Module):
                 raise ValueError(
                     "each modality requires [batch,features] values and a boolean mask"
                 )
+            if not torch.isfinite(value[mask]).all():
+                raise ValueError("available fusion features must be finite")
+            value = torch.where(mask.unsqueeze(-1), value, torch.zeros_like(value))
             projected.append(torch.tanh(self.projections[name](value)))
             scores.append(self.scorers[name](projected[-1]).squeeze(-1))
             masks.append(mask)
         states = torch.stack(projected, dim=1)
         mask_stack = torch.stack(masks, dim=1)
-        score_stack = torch.stack(scores, dim=1).masked_fill(~mask_stack, -1.0e9)
+        score_stack = torch.stack(scores, dim=1).float().masked_fill(~mask_stack, -1.0e9)
         valid = mask_stack.any(dim=1)
         weights = torch.softmax(score_stack, dim=1) * mask_stack.to(states.dtype)
         weights = weights / weights.sum(dim=1, keepdim=True).clamp_min(1.0e-12)
@@ -157,7 +168,16 @@ class MultimodalFusionClassifier(nn.Module):
             raise ValueError("fusion input modalities differ from configured encoders")
         features: dict[str, Tensor] = {}
         for name, encoder in self.encoders.items():
-            output = encoder(values[name])
+            value = values[name]
+            mask = available[name]
+            if mask.dtype != torch.bool or mask.shape != value.shape[:1]:
+                raise ValueError("encoder availability must be boolean per sample")
+            if not torch.isfinite(value[mask]).all():
+                raise ValueError("available encoder inputs must be finite")
+            value = torch.where(
+                mask.reshape((-1,) + (1,) * (value.ndim - 1)), value, torch.zeros_like(value)
+            )
+            output = encoder(value)
             if not isinstance(output, Tensor) or output.ndim != 2:
                 raise ValueError("each modality encoder must return [batch,features]")
             features[name] = output

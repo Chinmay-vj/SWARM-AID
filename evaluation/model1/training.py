@@ -2,9 +2,12 @@
 
 import copy
 import importlib.util
+import json
 import random
+import sys
+import time
 from collections.abc import Callable, Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Protocol, cast
 
@@ -35,14 +38,16 @@ class TrainingConfig(Record):
     gradient_clip_norm: float = Field(default=1.0, gt=0)
     mixed_precision: bool = False
     amp_dtype: Literal["float16", "bfloat16"] = "bfloat16"
-    seed: int = Field(default=42, ge=0)
+    seed: int = Field(default=2025, ge=0)
     device: str = "cpu"
     batch_size: int = Field(default=8, ge=1)
     workers: int = Field(default=0, ge=0)
     image_size: int = Field(default=224, ge=32)
+    checkpoint_every: int = Field(default=0, ge=0)
     max_gpu_memory_gb: float = Field(default=24, gt=0)
     checkpoint_root: Path = Path(r"D:\SWARM-AID-DATA\checkpoints")
     profile_output_root: Path = Path(r"D:\SWARM-AID-DATA\runs\phase11")
+    progress: bool = False
 
 
 class TrainingContext(Record):
@@ -187,12 +192,25 @@ class DetectionTask:
 
 
 class RegressionTask:
+    def __init__(self, loss: Literal["mse", "huber"] = "mse", huber_delta: float = 1.0) -> None:
+        if loss not in {"mse", "huber"} or huber_delta <= 0:
+            raise ValueError("invalid regression loss configuration")
+        self.loss_kind = loss
+        self.huber_delta = huber_delta
+
     def loss(self, model: nn.Module, features: Any, targets: Tensor) -> Tensor:
         predictions, valid = _regression_output(model, features)
+        return self.loss_from_outputs(predictions, valid, targets)
+
+    def loss_from_outputs(
+        self, predictions: Tensor, valid: Tensor | None, targets: Tensor
+    ) -> Tensor:
         if valid is not None:
             predictions, targets = predictions[valid], targets[valid]
         if not len(targets):
             raise ValueError("regression batch has no available sensor evidence")
+        if self.loss_kind == "huber":
+            return nn.functional.huber_loss(predictions, targets, delta=self.huber_delta)
         return nn.functional.mse_loss(predictions, targets)
 
     def predict(self, model: nn.Module, features: Any) -> PredictionBatch:
@@ -218,6 +236,7 @@ class EpochResult:
     validation_metrics: dict[str, float]
     global_step: int
     best_epoch: int
+    stage_timings: dict[str, float] = field(default_factory=dict, compare=False)
 
 
 @dataclass(frozen=True)
@@ -303,8 +322,24 @@ def fit(
     context: TrainingContext,
     optimizer: Optimizer | None = None,
     scheduler: LRScheduler | ReduceLROnPlateau | None = None,
+    resume_path: Path | None = None,
+    resume_sha256: str | None = None,
+    model_config: dict[str, Any] | None = None,
+    stop_after_epoch: int | None = None,
 ) -> TrainingResult:
     _validate_training_sources(train_batches, validation_batches, context)
+    from evaluation.model1.checkpoints import restore_checkpoint, save_checkpoint
+
+    if (resume_path is None) != (resume_sha256 is None):
+        raise ValueError("resume requires both checkpoint path and checksum")
+    if config.checkpoint_every or resume_path is not None:
+        if model_config is None:
+            raise ValueError("checkpointing requires an explicit model configuration")
+        for loader in (train_batches, validation_batches):
+            if not isinstance(loader, DataLoader) or loader.num_workers != 0:
+                raise ValueError("exact epoch resume requires zero-worker DataLoaders")
+        if config.checkpoint_root.resolve().drive.upper() != "D:" and sys.platform == "win32":
+            raise ValueError("checkpoint output must remain on D:")
     device = torch.device(config.device)
     if device.type not in {"cpu", "cuda"}:
         raise ValueError("Model 1 training supports CPU and CUDA devices only")
@@ -318,6 +353,12 @@ def fit(
         raise ValueError("multiple epochs require a re-iterable validation loader")
     if config.mixed_precision and device.type == "cpu" and config.amp_dtype == "float16":
         raise ValueError("CPU mixed precision requires bfloat16")
+    if device.type == "cuda":
+        index = device.index if device.index is not None else torch.cuda.current_device()
+        total = torch.cuda.get_device_properties(index).total_memory
+        torch.cuda.set_per_process_memory_fraction(
+            min(0.8, config.max_gpu_memory_gb * 1024**3 / total), index
+        )
     seed_everything(config.seed)
     model.to(device)
     optimizer = optimizer or torch.optim.AdamW(
@@ -336,23 +377,107 @@ def fit(
     best_global_step = 0
     global_step = 0
     stale_epochs = 0
-    for epoch in range(1, config.epochs + 1):
+    start_epoch = 1
+    if resume_path is not None and resume_sha256 is not None:
+        restored = restore_checkpoint(
+            resume_path,
+            resume_sha256,
+            config.checkpoint_root,
+            model,
+            optimizer,
+            scheduler,
+            scaler,
+            expected_model_config=model_config or {},
+            expected_training_config=config.model_dump(mode="json"),
+            expected_context=context,
+            device=device,
+        )
+        state = restored.loop_state
+        if not state:
+            raise ValueError("checkpoint lacks epoch-resume loop state")
+        start_epoch = restored.epoch + 1
+        global_step = restored.global_step
+        best_score, best_epoch = state["best_score"], state["best_epoch"]
+        stale_epochs = state["stale_epochs"]
+        best_state, best_optimizer_state = state["best_state"], state["best_optimizer_state"]
+        best_scheduler_state, best_scaler_state = (
+            state["best_scheduler_state"],
+            state["best_scaler_state"],
+        )
+        best_global_step = state["best_global_step"]
+        history = [EpochResult(**item) for item in state["history"]]
+        for label, loader in (("train", train_batches), ("validation", validation_batches)):
+            if isinstance(loader, DataLoader) and loader.generator is not None:
+                loader.generator.set_state(state[label + "_generator"])
+        if start_epoch > config.epochs or stale_epochs >= config.early_stopping_patience:
+            raise ValueError("checkpoint run has already completed or early-stopped")
+    for epoch in range(start_epoch, config.epochs + 1):
+        epoch_started = time.perf_counter()
+        stage_timings = {
+            "loader_wait_seconds": 0.0,
+            "host_to_device_seconds": 0.0,
+            "forward_and_loss_seconds": 0.0,
+            "backward_and_optimizer_seconds": 0.0,
+            "validation_forward_and_loss_seconds": 0.0,
+            "checkpoint_save_seconds": 0.0,
+        }
+        cuda_intervals: dict[str, list[tuple[Any, Any]]] = {}
+
+        def start_stage() -> Any:
+            if device.type == "cuda":
+                event = cast(Any, torch.cuda.Event)(enable_timing=True)
+                event.record()
+                return event
+            return time.perf_counter()
+
+        def stop_stage(
+            name: str,
+            started: Any,
+            *,
+            _cuda_intervals: dict[str, list[tuple[Any, Any]]] = cuda_intervals,
+            _stage_timings: dict[str, float] = stage_timings,
+        ) -> None:
+            if device.type == "cuda":
+                ended = cast(Any, torch.cuda.Event)(enable_timing=True)
+                ended.record()
+                _cuda_intervals.setdefault(name, []).append((started, ended))
+            else:
+                _stage_timings[name] += time.perf_counter() - started
+
+        def record_loader_wait(
+            seconds: float, *, _stage_timings: dict[str, float] = stage_timings
+        ) -> None:
+            _stage_timings["loader_wait_seconds"] += seconds
+
         model.train()
         optimizer.zero_grad(set_to_none=True)
-        total_loss = 0.0
+        total_loss: Tensor | None = None
         batch_count = 0
         pending = 0
         for batch_index, ((features, targets), is_last_batch) in enumerate(
-            _with_last(train_batches)
+            _with_last(train_batches, on_wait=record_loader_wait)
         ):
+            transfer_started = start_stage()
             features = _to_device(features, device)
             targets = _to_device(targets, device)
+            stop_stage("host_to_device_seconds", transfer_started)
+            forward_started = start_stage()
             with _autocast(device, config):
-                loss = adapter.loss(model, features, targets)
+                if isinstance(adapter, RegressionTask):
+                    outputs, valid = _regression_output(model, features)
+                    loss = adapter.loss_from_outputs(outputs, valid, targets)
+                else:
+                    loss = adapter.loss(model, features, targets)
+            stop_stage("forward_and_loss_seconds", forward_started)
             if not torch.isfinite(loss):
                 raise ValueError("nonfinite training loss")
+            backward_started = start_stage()
             torch.autograd.backward(scaler.scale(loss / config.gradient_accumulation))
-            total_loss += float(loss.detach())
+            total_loss = (
+                loss.detach().to(torch.float64)
+                if total_loss is None
+                else total_loss + loss.detach().to(torch.float64)
+            )
             batch_count += 1
             pending += 1
             if pending == config.gradient_accumulation or is_last_batch:
@@ -362,24 +487,68 @@ def fit(
                     for parameter in model.parameters():
                         if parameter.grad is not None:
                             parameter.grad.mul_(correction)
-                torch.nn.utils.clip_grad_norm_(model.parameters(), config.gradient_clip_norm)
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(), config.gradient_clip_norm, error_if_nonfinite=True
+                )
                 scaler.step(optimizer)
                 scaler.update()
                 optimizer.zero_grad(set_to_none=True)
                 global_step += 1
                 pending = 0
+            stop_stage("backward_and_optimizer_seconds", backward_started)
+            if config.progress and ((batch_index + 1) % 10 == 0 or is_last_batch):
+                try:
+                    total_batches = len(train_batches)  # type: ignore[arg-type]
+                except TypeError:
+                    total_batches = 0
+                elapsed = time.perf_counter() - epoch_started
+                remaining_batches = max(total_batches - batch_index - 1, 0)
+                eta = elapsed / (batch_index + 1) * remaining_batches if total_batches else 0.0
+                count_label = str(total_batches) if total_batches else "?"
+                print(
+                    f"[batch {batch_index + 1}/{count_label}] epoch={epoch}/{config.epochs} "
+                    f"elapsed_s={elapsed:.1f} eta_s={eta:.1f}",
+                    flush=True,
+                )
         if batch_count == 0:
             raise ValueError("training loader is empty")
         model.eval()
         predictions: list[Any] = []
         expected: list[Any] = []
+        validation_loss_total: Tensor | None = None
+        validation_batch_count = 0
         with torch.inference_mode():
-            for features, targets in validation_batches:
+            for features, targets in _iter_with_wait(
+                validation_batches, on_wait=record_loader_wait
+            ):
+                transfer_started = start_stage()
                 features = _to_device(features, device)
-                predictions.append(adapter.predict(model, features))
-                expected.append(_to_device(targets, device))
+                targets = _to_device(targets, device)
+                stop_stage("host_to_device_seconds", transfer_started)
+                validation_started = start_stage()
+                if isinstance(adapter, RegressionTask):
+                    output, valid = _regression_output(model, features)
+                    prediction = PredictionBatch(
+                        output.detach(), valid.detach() if valid is not None else None
+                    )
+                    batch_loss = adapter.loss_from_outputs(output, valid, targets)
+                else:
+                    prediction = adapter.predict(model, features)
+                    batch_loss = adapter.loss(model, features, targets)
+                stop_stage("validation_forward_and_loss_seconds", validation_started)
+                predictions.append(prediction)
+                expected.append(targets)
+                validation_loss_total = (
+                    batch_loss.detach().to(torch.float64)
+                    if validation_loss_total is None
+                    else validation_loss_total + batch_loss.detach().to(torch.float64)
+                )
+                validation_batch_count += 1
         if not predictions:
             raise ValueError("validation loader is empty")
+        if validation_loss_total is None:
+            raise RuntimeError("validation did not produce a loss")
+        validation_loss = float(validation_loss_total.cpu()) / validation_batch_count
         merged_predictions, merged_expected = _merge_batches(predictions, expected)
         validation_metrics = adapter.metrics(merged_predictions, merged_expected)
         score, direction = adapter.selection_score(validation_metrics)
@@ -410,14 +579,91 @@ def fit(
         history.append(
             EpochResult(
                 epoch,
-                total_loss / batch_count,
+                float(total_loss.cpu()) / batch_count if total_loss is not None else 0.0,
                 score,
                 validation_metrics,
                 global_step,
                 best_epoch,
+                stage_timings,
             )
         )
-        if stale_epochs >= config.early_stopping_patience:
+        if device.type == "cuda":
+            torch.cuda.synchronize(device)
+            for name, intervals in cuda_intervals.items():
+                stage_timings[name] = sum(
+                    started.elapsed_time(ended) / 1000.0 for started, ended in intervals
+                )
+        if config.checkpoint_every and (epoch % config.checkpoint_every == 0):
+            assert best_score is not None
+            loop_state = {
+                "best_score": best_score,
+                "best_epoch": best_epoch,
+                "stale_epochs": stale_epochs,
+                "best_state": best_state,
+                "best_optimizer_state": best_optimizer_state,
+                "best_scheduler_state": best_scheduler_state,
+                "best_scaler_state": best_scaler_state,
+                "best_global_step": best_global_step,
+                "history": [asdict(item) for item in history],
+            }
+            for label, loader in (("train", train_batches), ("validation", validation_batches)):
+                if isinstance(loader, DataLoader) and loader.generator is not None:
+                    loop_state[label + "_generator"] = loader.generator.get_state()
+            checkpoint_started = time.perf_counter()
+            checkpoint = save_checkpoint(
+                config.checkpoint_root,
+                f"epoch-{epoch:04d}.pt",
+                model,
+                optimizer,
+                scheduler,
+                scaler,
+                epoch=epoch,
+                global_step=global_step,
+                best_validation_metric=float(best_score),
+                model_config=model_config or {},
+                training_config=config.model_dump(mode="json"),
+                context=context,
+                loop_state=loop_state,
+            )
+            stage_timings["checkpoint_save_seconds"] = time.perf_counter() - checkpoint_started
+            checkpoint.path.with_suffix(".json").write_text(
+                json.dumps(
+                    {
+                        "sha256": checkpoint.sha256,
+                        "result": asdict(history[-1]),
+                        "context": context.model_dump(mode="json"),
+                    },
+                    sort_keys=True,
+                ),
+                encoding="utf8",
+            )
+        epoch_duration = time.perf_counter() - epoch_started
+        if config.progress:
+            elapsed_remaining = epoch_duration * (config.epochs - epoch)
+            metrics = history[-1].validation_metrics
+            maermse = ""
+            if "mae" in metrics:
+                maermse = f" val_mae={metrics['mae']:.6f} val_rmse={metrics['rmse']:.6f}"
+            print(
+                f"[epoch {epoch}/{config.epochs}] "
+                f"train_loss={history[-1].train_loss:.6f} "
+                f"val_loss={validation_loss:.6f}"
+                f"{maermse} "
+                f"epoch_s={epoch_duration:.2f} "
+                f"eta_s={elapsed_remaining:.1f}"
+                f"{' best_checkpoint_updated' if improved else ''}",
+                flush=True,
+            )
+            print(
+                "[stages] "
+                + " ".join(f"{name}={seconds:.3f}s" for name, seconds in stage_timings.items()),
+                flush=True,
+            )
+        if (
+            stale_epochs >= config.early_stopping_patience
+            or stop_after_epoch is not None
+            and epoch >= stop_after_epoch
+        ):
             break
     if (
         best_state is None
@@ -433,6 +679,8 @@ def fit(
             raise RuntimeError("best scheduler state is missing")
         scheduler.load_state_dict(best_scheduler_state)
     scaler.load_state_dict(best_scaler_state)
+    if config.progress:
+        print(f"[final] best_epoch={best_epoch} best_score={best_score:.6f}", flush=True)
     return TrainingResult(tuple(history), best_epoch, best_score, best_global_step)
 
 
@@ -506,8 +754,10 @@ def _merge_batches(predictions: list[Any], targets: list[Any]) -> tuple[Any, Any
 
 def _with_last(
     batches: Iterable[tuple[Any, Any]],
+    *,
+    on_wait: Callable[[float], None] | None = None,
 ) -> Iterable[tuple[tuple[Any, Any], bool]]:
-    iterator = iter(batches)
+    iterator = iter(_iter_with_wait(batches, on_wait=on_wait))
     try:
         current = next(iterator)
     except StopIteration:
@@ -516,6 +766,23 @@ def _with_last(
         yield current, False
         current = following
     yield current, True
+
+
+def _iter_with_wait(
+    batches: Iterable[tuple[Any, Any]],
+    *,
+    on_wait: Callable[[float], None] | None = None,
+) -> Iterator[tuple[Any, Any]]:
+    iterator = iter(batches)
+    while True:
+        started = time.perf_counter()
+        try:
+            batch = next(iterator)
+        except StopIteration:
+            return
+        if on_wait is not None:
+            on_wait(time.perf_counter() - started)
+        yield batch
 
 
 def _validate_training_sources(

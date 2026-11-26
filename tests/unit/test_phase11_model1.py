@@ -3,6 +3,7 @@ import importlib.util
 import io
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -23,6 +24,8 @@ from evaluation.model1.checkpoints import restore_checkpoint, save_checkpoint
 from evaluation.model1.data import (
     AuthorizedTaskDataset,
     TaskDataConfig,
+    _cached_sensor_source_index,
+    _sensor_window,
     build_task_dataloader,
     fit_training_channel_stats,
 )
@@ -49,6 +52,8 @@ from evaluation.model1.provider import (
 )
 from evaluation.model1.training import (
     ClassificationTask,
+    PredictionBatch,
+    RegressionTask,
     SyntheticTaskDataset,
     TrainingConfig,
     TrainingContext,
@@ -197,6 +202,185 @@ def _authorized_release(
         restrictions=("Synthetic fixture only.",),
     )
     return registry, input_manifest, target_manifest, candidate_path, authorization
+
+
+def test_uci_regression_huber_forward_backward_is_finite() -> None:
+    model = SensorSequenceModel(8, 1, hidden_dim=32)
+    values = torch.randn(4, 24, 8)
+    available = torch.ones(4, 24, 8, dtype=torch.bool)
+    targets = torch.randn(4, 1)
+    loss = RegressionTask(loss="huber", huber_delta=1.0).loss(
+        model,
+        {"values": values, "available": available},
+        targets,
+    )
+    assert torch.isfinite(loss)
+    loss.backward()
+    assert all(
+        parameter.grad is None or torch.isfinite(parameter.grad).all()
+        for parameter in model.parameters()
+    )
+
+
+def test_uci_sensor_rows_skip_blank_timestamps_and_reject_malformed_rows(
+    tmp_path: Path,
+) -> None:
+    from evaluation.data.preprocessing import sensor_rows
+
+    csv_path = tmp_path / "AirQualityUCI.csv"
+    csv_path.write_text(
+        "Date;Time;CO(GT)\n01/01/2004;00.00.00;1,0\n ; ; \n;;\n",
+        encoding="utf-8",
+    )
+    parsed_rows = list(sensor_rows(csv_path))
+    assert len(parsed_rows) == 1
+    assert parsed_rows[0]["timestamp"] == "2004-01-01T00:00:00"
+
+    csv_path.write_text(
+        "Date;Time;CO(GT)\nnot-a-date;00.00.00;1,0\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="invalid UCI timestamp at source row 2"):
+        list(sensor_rows(csv_path))
+
+
+def test_uci_baselines_use_only_the_model_valid_validation_rows() -> None:
+    from runs.phase11g3.launch_uci import baseline_metrics
+
+    class ValidationDataset:
+        targets = (1.0, 100.0, 3.0)
+        previous = (1.0, 999.0, None)
+
+        def __len__(self) -> int:
+            return len(self.targets)
+
+        def __getitem__(self, index: int) -> tuple[None, Tensor]:
+            return None, torch.tensor([self.targets[index]])
+
+        def previous_sensor_measurement(self, index: int, measurement: str) -> float | None:
+            assert measurement == "CO(GT)"
+            return self.previous[index]
+
+    metrics = baseline_metrics(
+        ValidationDataset(),
+        torch.tensor([True, False, True]),
+        train_mean=2.0,
+    )
+    assert metrics["sample_count"] == 2
+    assert metrics["mean_mae"] == pytest.approx(1.0)
+    assert metrics["persistence_mae"] == pytest.approx(0.5)
+    assert metrics["persistence_fallback_samples"] == 1
+
+
+def test_finalizer_accepts_early_stopped_checkpoint_without_training() -> None:
+    from runs.phase11g3.launch_uci import completed_training_result
+
+    state = {
+        "stale_epochs": 10,
+        "best_epoch": 16,
+        "best_score": 0.972842,
+        "best_global_step": 1264,
+        "history": [
+            {
+                "epoch": 26,
+                "train_loss": 0.133783,
+                "validation_score": 1.058111,
+                "validation_metrics": {"mae": 0.752566, "rmse": 1.058111},
+                "global_step": 2054,
+                "best_epoch": 16,
+            }
+        ],
+    }
+    result = completed_training_result(
+        state, 26, TrainingConfig(epochs=50, early_stopping_patience=10)
+    )
+    assert result.best_epoch == 16
+    assert result.best_score == pytest.approx(0.972842)
+    assert result.history[0].epoch == 26
+
+    incomplete_state = {**state, "stale_epochs": 0}
+    with pytest.raises(ValueError, match="completed or early-stopped"):
+        completed_training_result(
+            incomplete_state,
+            16,
+            TrainingConfig(epochs=50, early_stopping_patience=10),
+        )
+
+
+def test_uci_sensor_windows_parse_source_once_and_preserve_missing_values(tmp_path: Path) -> None:
+    source = tmp_path / "AirQualityUCI.csv"
+    source.write_text(
+        "Date;Time;T;RH\n01/01/2004;00.00.00;10;50\n01/01/2004;01.00.00;-200;60\n",
+        encoding="utf-8",
+    )
+    sample = SimpleNamespace(
+        source_rows=(2, 3),
+        sensor_feature_names=("T", "RH"),
+    )
+    _cached_sensor_source_index.cache_clear()
+    try:
+        values, available = _sensor_window(source, sample)
+        _sensor_window(source, sample)
+        assert values.tolist() == [[10.0, 50.0], [0.0, 60.0]]
+        assert available.tolist() == [[True, True], [False, True]]
+        cache = _cached_sensor_source_index.cache_info()
+        assert cache.misses == 1 and cache.hits == 1
+    finally:
+        _cached_sensor_source_index.cache_clear()
+
+
+def test_cached_sensor_normalization_is_applied_once() -> None:
+    dataset = object.__new__(AuthorizedTaskDataset)
+    dataset._config = TaskDataConfig("sensor_regression")
+    dataset.rows = (SimpleNamespace(sample_id="window-1", sensor_feature_names=("T", "RH")),)
+    dataset._targets = {
+        "window-1": SimpleNamespace(annotation=SimpleNamespace(numeric_targets=(4.0,)))
+    }
+    dataset._sensor_values = torch.tensor([[[12.0, 40.0], [8.0, 60.0]]])
+    dataset._sensor_available = torch.tensor([[[True, True], [False, True]]])
+    dataset._normalized_sensor_values = None
+    dataset._sensor_targets = torch.tensor([[4.0]])
+    dataset.normalization = None
+    dataset.augmentation_enabled = False
+    dataset.set_normalization(torch.tensor([10.0, 50.0]), torch.tensor([2.0, 10.0]))
+    features, targets = dataset[0]
+    assert features["values"].tolist() == [[1.0, -1.0], [0.0, 1.0]]
+    assert features["available"].tolist() == [[True, True], [False, True]]
+    assert targets.tolist() == [4.0]
+
+
+def test_regression_fit_uses_one_validation_forward_and_records_stage_timings() -> None:
+    class CountingRegressor(nn.Linear):
+        def __init__(self) -> None:
+            super().__init__(2, 1)
+            self.forward_count = 0
+
+        def forward(self, features: Tensor) -> Tensor:
+            self.forward_count += 1
+            return super().forward(features)
+
+    fixture_sha256 = hashlib.sha256(b"synthetic regression fixture").hexdigest()
+    examples = tuple(
+        (torch.tensor([float(index), 1.0]), torch.tensor([float(index)])) for index in range(4)
+    )
+    train_data = SyntheticTaskDataset(
+        examples, fixture_id="tiny-regressor", fixture_sha256=fixture_sha256
+    )
+    validation_data = SyntheticTaskDataset(
+        examples[:2], fixture_id="tiny-regressor", fixture_sha256=fixture_sha256
+    )
+    model = CountingRegressor()
+    result = fit(
+        model,
+        DataLoader(train_data, batch_size=4),
+        DataLoader(validation_data, batch_size=2),
+        RegressionTask(loss="huber"),
+        config=TrainingConfig(epochs=1, progress=False),
+        context=synthetic_training_context("tiny-regression", train_data),
+    )
+    assert model.forward_count == 2
+    assert result.history[0].stage_timings["loader_wait_seconds"] >= 0
+    assert result.history[0].stage_timings["forward_and_loss_seconds"] >= 0
 
 
 def test_task_models_handle_modalities_and_missingness() -> None:
@@ -372,6 +556,19 @@ def test_metrics_cover_classification_detection_segmentation_and_missingness() -
     )
 
 
+def test_regression_metrics_exclude_invalid_sensor_windows() -> None:
+    metrics = RegressionTask().metrics(
+        PredictionBatch(
+            torch.tensor([[1.0], [100.0], [3.0]]),
+            torch.tensor([True, False, True]),
+        ),
+        torch.tensor([[0.0], [99.0], [1.0]]),
+    )
+
+    assert metrics["mae"] == 1.5
+    assert metrics["rmse"] == pytest.approx(2.5**0.5)
+
+
 def test_synthetic_fit_and_atomic_checkpoint_recovery(tmp_path: Path) -> None:
     fixture_sha256 = hashlib.sha256(b"synthetic fixture only").hexdigest()
     train_examples = tuple(
@@ -465,3 +662,40 @@ def test_real_training_context_requires_bound_approval_and_loader() -> None:
             config=TrainingConfig(epochs=1),
             context=context,
         )
+
+
+@pytest.mark.parametrize("dataset_id", ["heridal", "sard"])
+def test_task_loader_rejects_phase10j_exclusions_before_authorization(
+    tmp_path: Path,
+    dataset_id: str,
+) -> None:
+    registry, inputs, targets, candidate, authorization = _authorized_release(tmp_path)
+    inputs = inputs.model_copy(update={"dataset_id": dataset_id})
+    targets = targets.model_copy(update={"dataset_id": dataset_id})
+    with pytest.raises(ValueError, match="excluded from active"):
+        AuthorizedTaskDataset(
+            registry,
+            inputs,
+            targets,
+            tmp_path / "data",
+            TaskDataConfig("image_classification"),
+            task_id="fixture",
+            candidate_manifest_path=candidate,
+            authorization_records=(authorization,),
+        )
+
+
+def test_mask_loader_preserves_classes_and_rejects_unmapped_pixels(tmp_path: Path) -> None:
+    from evaluation.model1.data import _mask_tensor
+
+    path = tmp_path / "mask.png"
+    mask = Image.new("L", (2, 2))
+    mask.putdata([0, 1, 1, 0])
+    mask.save(path)
+    result = _mask_tensor(
+        path, (4, 4), {0: "background", 1: "fixture"}, {"background": 0, "fixture": 1}
+    )
+    values = {int(value) for row in result.tolist() for value in row}
+    assert result.shape == (4, 4) and values == {0, 1}
+    with pytest.raises(ValueError, match="without source-verified"):
+        _mask_tensor(path, (4, 4), {0: "background"}, {"background": 0})

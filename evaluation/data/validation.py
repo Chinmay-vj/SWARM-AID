@@ -182,8 +182,12 @@ def validate(
                 ):
                     raise ValueError("operational asset in a restricted label directory")
                 path = inspect_asset(root, s.asset, FORMATS[s.modality], verify_files)
-                group(("content", s.asset.sha256), s.split)
-                group(("file", str(path).casefold()), s.split)
+                if s.modality == "environment" and s.source_rows:
+                    for source_row in s.source_rows:
+                        group(("sensor-row", str(path).casefold(), str(source_row)), s.split)
+                else:
+                    group(("content", s.asset.sha256), s.split)
+                    group(("file", str(path).casefold()), s.split)
                 if manifest.role == "operational":
                     operational_files.update((str(path).casefold(), s.asset.sha256))
                 if verify_files:

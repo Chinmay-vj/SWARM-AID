@@ -1,8 +1,8 @@
 {
   "device": "cuda",
-  "batch_size": 16,
-  "workers": 4,
-  "image_size": 224,
+  "batch_size": 8,
+  "workers": 0,
+  "image_size": 128,
   "epochs": 50,
   "learning_rate": 0.001,
   "weight_decay": 0.0001,
@@ -13,5 +13,7 @@
   "amp_dtype": "bfloat16",
   "seed": 2025,
   "checkpoint_root": "D:\\SWARM-AID-DATA\\checkpoints",
-  "profile_output_root": "D:\\SWARM-AID-DATA\\runs\\phase11"
+  "profile_output_root": "D:\\SWARM-AID-DATA\\runs\\phase11",
+  "checkpoint_every": 1,
+  "max_gpu_memory_gb": 8
 }

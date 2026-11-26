@@ -1,4 +1,4 @@
-﻿"""CPU transforms for review and approved development inputs. No fitted defaults."""
+"""CPU transforms for review and approved development inputs. No fitted defaults."""
 
 import csv
 import hashlib
@@ -208,10 +208,22 @@ def sensor_rows(path: Path) -> Iterator[dict[str, Any]]:
             if not any(row.values()):
                 continue
             if uci:
-                timestamp = datetime.strptime(
-                    row["Date"] + " " + row["Time"], "%d/%m/%Y %H.%M.%S"
-                ).isoformat()
                 keys = [k for k in row if k and k not in ("Date", "Time")]
+                date = (row.get("Date") or "").strip()
+                clock = (row.get("Time") or "").strip()
+                if not date or not clock:
+                    has_measurement = any(
+                        (row.get(key) or "").strip() not in {"", "-200"} for key in keys
+                    )
+                    if not has_measurement:
+                        continue
+                    raise ValueError(f"missing UCI timestamp for measurement at source row {line}")
+                try:
+                    timestamp = datetime.strptime(
+                        date + " " + clock, "%d/%m/%Y %H.%M.%S"
+                    ).isoformat()
+                except ValueError as exc:
+                    raise ValueError(f"invalid UCI timestamp at source row {line}") from exc
                 device = flag = None
             elif smoke:
                 counter = int(row["CNT"])
@@ -271,4 +283,3 @@ def sensor_rows(path: Path) -> Iterator[dict[str, Any]]:
                     "parameter": row.get("parameter_code"),
                     "alarm": row.get("Fire Alarm"),
                 }
-

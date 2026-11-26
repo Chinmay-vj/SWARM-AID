@@ -40,7 +40,7 @@ def test_uci_windows_stay_inside_time_partitions() -> None:
         "validation": 48,
     }
     assert audit["cross_partition_raw_row_overlap"] == 0
-    assert all(len(window.source_rows) == 25 for window in windows)
+    assert all(len(window.source_rows) == 24 for window in windows)
     assert all(window.metadata["horizon_hours"] == 1 for window in windows)
     assert all(window.metadata["lookback_hours"] == 24 for window in windows)
 
