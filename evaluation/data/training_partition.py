@@ -25,9 +25,21 @@ def approved_training(
     task_id: str | None = None,
     candidate_manifest_paths: Mapping[str, Path] | None = None,
     authorization_records: tuple[AuthorizationRecord, ...] = (),
+    training_targets_manifest: Manifest | None = None,
 ) -> Iterator[list[Sample]]:
     if not manifests:
         raise ValueError("at least one authorized release manifest is required")
+    if any(not isinstance(manifest, Manifest) for manifest in manifests):
+        raise TypeError("candidate-only or untyped manifests cannot enter the training loader")
+    operational = tuple(manifest for manifest in manifests if manifest.role == "operational")
+    if training_targets_manifest is not None:
+        if len(operational) != 1 or len(manifests) != 1:
+            raise ValueError("paired task training requires exactly one operational input manifest")
+        input_manifest = operational[0]
+        if {sample.sample_id: sample.split for sample in input_manifest.samples} != {
+            sample.sample_id: sample.split for sample in training_targets_manifest.samples
+        }:
+            raise ValueError("input and target manifests must contain the same samples and splits")
     for manifest in manifests:
         require_training_authorization(
             registry,
@@ -36,8 +48,14 @@ def approved_training(
             candidate_manifest_paths=candidate_manifest_paths,
             authorization_records=authorization_records,
             dataset_root=root,
+            training_targets_manifest=(
+                training_targets_manifest if manifest.role == "operational" else None
+            ),
         )
-    validate(registry, manifests, root, verify_files=True)
+    validated_manifests = manifests + (
+        (training_targets_manifest,) if training_targets_manifest is not None else ()
+    )
+    validate(registry, validated_manifests, root, verify_files=True)
     records = (
         row
         for manifest in manifests

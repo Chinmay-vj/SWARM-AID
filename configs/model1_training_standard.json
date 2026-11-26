@@ -1,0 +1,17 @@
+{
+  "device": "cuda",
+  "batch_size": 16,
+  "workers": 4,
+  "image_size": 224,
+  "epochs": 50,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "gradient_accumulation": 1,
+  "early_stopping_patience": 8,
+  "gradient_clip_norm": 1.0,
+  "mixed_precision": true,
+  "amp_dtype": "bfloat16",
+  "seed": 2025,
+  "checkpoint_root": "D:\\SWARM-AID-DATA\\checkpoints",
+  "profile_output_root": "D:\\SWARM-AID-DATA\\runs\\phase11"
+}

@@ -101,11 +101,19 @@ class Annotation(Record):
     review_ref: Id | None = None
     # Optional normalized index entries use source image pixel coordinates (x,y,w,h).
     boxes: tuple[tuple[float, float, float, float], ...] = ()
+    box_labels: tuple[Id, ...] = ()
+    numeric_targets: tuple[float, ...] = ()
+    target_names: tuple[Id, ...] = ()
+    target_units: tuple[Id, ...] = ()
 
     @model_validator(mode="after")
     def reviewed(self) -> Self:
         if self.review_status == "human_reviewed" and self.review_ref is None:
             raise ValueError("human review requires a decision or adjudication reference")
+        if self.box_labels and len(self.box_labels) != len(self.boxes):
+            raise ValueError("each detection box requires exactly one class label")
+        if not (len(self.numeric_targets) == len(self.target_names) == len(self.target_units)):
+            raise ValueError("numeric targets require matching names and units")
         return self
 
 
@@ -134,10 +142,25 @@ class Sample(Record):
     missing_modalities: tuple[Modality, ...] = ()
     dimensions: tuple[Positive, Positive] | None = None
     sample_rate_hz: Positive | None = None
+    source_rows: tuple[Positive, ...] = ()
+    sensor_feature_names: tuple[Id, ...] = ()
+    sensor_feature_units: tuple[Id, ...] = ()
+    prediction_horizon: Positive | None = None
+    prediction_horizon_unit: Literal["samples", "seconds", "minutes", "hours", "days"] | None = None
     annotation: Annotation | None = None
 
     @model_validator(mode="after")
     def consistent(self) -> Self:
+        if len(self.sensor_feature_names) != len(self.sensor_feature_units):
+            raise ValueError("sensor features require units in the same order")
+        if (self.prediction_horizon is None) != (self.prediction_horizon_unit is None):
+            raise ValueError("prediction horizon requires a unit")
+        if self.source_rows and tuple(sorted(set(self.source_rows))) != self.source_rows:
+            raise ValueError("source rows must be unique and increasing")
+        if (
+            self.source_rows or self.sensor_feature_names or self.prediction_horizon is not None
+        ) and self.modality != "environment":
+            raise ValueError("sensor window metadata requires environmental samples")
         if self.modality in self.missing_modalities:
             raise ValueError("present modality also marked missing")
         if self.pair_id and {"image", "thermal"}.intersection(self.missing_modalities):
@@ -171,7 +194,7 @@ class Sample(Record):
 
 
 class Manifest(Record):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     manifest_version: Id
     dataset_id: Id
     dataset_version: Id
@@ -181,6 +204,21 @@ class Manifest(Record):
 
     @model_validator(mode="after")
     def boundary(self) -> Self:
+        versioned_fields = any(
+            sample.source_rows
+            or sample.sensor_feature_names
+            or sample.prediction_horizon is not None
+            or sample.annotation is not None
+            and (
+                sample.annotation.box_labels
+                or sample.annotation.numeric_targets
+                or sample.annotation.target_names
+                or sample.annotation.target_units
+            )
+            for sample in self.samples
+        )
+        if self.schema_version == "1.0" and versioned_fields:
+            raise ValueError("new task target and sensor fields require manifest schema 1.1")
         for s in self.samples:
             if self.origin == "real":
                 if s.representation != "physical" or not (s.sequence_id or s.location_group):

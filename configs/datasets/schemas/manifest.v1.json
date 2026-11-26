@@ -92,6 +92,47 @@
           },
           "title": "Boxes",
           "type": "array"
+        },
+        "box_labels": {
+          "default": [],
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Box Labels",
+          "type": "array"
+        },
+        "numeric_targets": {
+          "default": [],
+          "items": {
+            "type": "number"
+          },
+          "title": "Numeric Targets",
+          "type": "array"
+        },
+        "target_names": {
+          "default": [],
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Target Names",
+          "type": "array"
+        },
+        "target_units": {
+          "default": [],
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Target Units",
+          "type": "array"
         }
       },
       "required": [
@@ -493,6 +534,69 @@
           "default": null,
           "title": "Sample Rate Hz"
         },
+        "source_rows": {
+          "default": [],
+          "items": {
+            "exclusiveMinimum": 0,
+            "type": "integer"
+          },
+          "title": "Source Rows",
+          "type": "array"
+        },
+        "sensor_feature_names": {
+          "default": [],
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Sensor Feature Names",
+          "type": "array"
+        },
+        "sensor_feature_units": {
+          "default": [],
+          "items": {
+            "maxLength": 100,
+            "minLength": 1,
+            "pattern": "\\S",
+            "type": "string"
+          },
+          "title": "Sensor Feature Units",
+          "type": "array"
+        },
+        "prediction_horizon": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prediction Horizon"
+        },
+        "prediction_horizon_unit": {
+          "anyOf": [
+            {
+              "enum": [
+                "samples",
+                "seconds",
+                "minutes",
+                "hours",
+                "days"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Prediction Horizon Unit"
+        },
         "annotation": {
           "anyOf": [
             {
@@ -521,7 +625,10 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": {
-      "const": "1.0",
+      "enum": [
+        "1.0",
+        "1.1"
+      ],
       "title": "Schema Version",
       "type": "string"
     },

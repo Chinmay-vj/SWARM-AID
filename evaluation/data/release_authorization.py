@@ -30,13 +30,14 @@ ReadinessStatus = Literal[
 
 
 class AuthorizationRecord(Record):
-    schema_version: Literal["phase10i-authorization-1.0"]
+    schema_version: Literal["phase10i-authorization-1.0", "phase10i-authorization-1.1"]
     authorization_id: Id
     dataset_id: Id
     dataset_version: Id
     task_id: Id
     candidate_manifest_sha256: Digest
     training_manifest_sha256: Digest
+    training_targets_manifest_sha256: Digest | None = None
     approved_usage_scopes: tuple[UsageScope, ...] = Field(min_length=1)
     governance_decision: Literal["approved", "rejected", "pending"]
     governance_evidence_refs: tuple[Id, ...] = ()
@@ -54,6 +55,11 @@ class AuthorizationRecord(Record):
 
     @model_validator(mode="after")
     def approval_is_explicit_and_complete(self) -> Self:
+        if self.schema_version == "phase10i-authorization-1.0":
+            if self.training_targets_manifest_sha256 is not None:
+                raise ValueError("Phase 10I authorization cannot bind a target manifest")
+        elif self.training_targets_manifest_sha256 is None:
+            raise ValueError("Phase 11 task authorization requires a target manifest checksum")
         if self.authorized_at > datetime.now(UTC):
             raise ValueError("authorization date cannot be in the future")
         if self.decision == "APPROVE" and (
@@ -73,12 +79,16 @@ class AuthorizationRecord(Record):
             or not self.owner_authorization_ref.strip()
             or not self.restrictions
         ):
-            raise ValueError("approval requires governance, privacy, review, owner and scope evidence")
+            raise ValueError(
+                "approval requires governance, privacy, review, owner and scope evidence"
+            )
         return self
 
 
 class AuthorizationBundle(Record):
-    schema_version: Literal["phase10i-authorization-bundle-1.0"]
+    schema_version: Literal[
+        "phase10i-authorization-bundle-1.0", "phase10i-authorization-bundle-1.1"
+    ]
     records: tuple[AuthorizationRecord, ...]
 
     @model_validator(mode="after")
@@ -86,6 +96,10 @@ class AuthorizationBundle(Record):
         ids = [record.authorization_id for record in self.records]
         if len(set(ids)) != len(ids):
             raise ValueError("duplicate authorization identifier")
+        if self.schema_version == "phase10i-authorization-bundle-1.0" and any(
+            record.schema_version != "phase10i-authorization-1.0" for record in self.records
+        ):
+            raise ValueError("Phase 10I authorization bundle cannot contain Phase 11 records")
         return self
 
 
@@ -112,9 +126,7 @@ class TaskReadiness(Record):
             raise ValueError("READY requires no blockers and an approved nonempty release")
         if self.status in {"BLOCKED", "NOT_APPLICABLE"} and self.approved_training_records:
             raise ValueError("blocked or not-applicable tasks cannot contain training records")
-        if self.status == "CONDITIONAL" and (
-            not self.blockers or self.approved_training_records
-        ):
+        if self.status == "CONDITIONAL" and (not self.blockers or self.approved_training_records):
             raise ValueError("CONDITIONAL requires explicit conditions and no training records")
         return self
 
@@ -149,6 +161,8 @@ def require_training_authorization(
     candidate_manifest_paths: Mapping[str, Path] | None,
     authorization_records: Iterable[AuthorizationRecord],
     dataset_root: Path,
+    training_targets_manifest: Manifest | None = None,
+    required_scope: UsageScope = "local_training",
 ) -> AuthorizationRecord:
     if not isinstance(manifest, Manifest):
         raise TypeError("candidate-only or untyped manifests cannot enter the training loader")
@@ -156,8 +170,7 @@ def require_training_authorization(
         (
             entry
             for entry in registry.datasets
-            if (entry.dataset_id, entry.version)
-            == (manifest.dataset_id, manifest.dataset_version)
+            if (entry.dataset_id, entry.version) == (manifest.dataset_id, manifest.dataset_version)
         ),
         None,
     )
@@ -171,6 +184,16 @@ def require_training_authorization(
         raise ValueError("candidate manifest path is required for checksum-bound authorization")
     if manifest.role != "operational":
         raise ValueError("training loader accepts only operational input manifests")
+    if training_targets_manifest is not None and (
+        training_targets_manifest.role != "training_targets"
+        or (
+            training_targets_manifest.dataset_id,
+            training_targets_manifest.dataset_version,
+            training_targets_manifest.origin,
+        )
+        != (manifest.dataset_id, manifest.dataset_version, manifest.origin)
+    ):
+        raise ValueError("training targets must match the input dataset, version and origin")
 
     candidate_path = candidate_manifest_paths[manifest.dataset_id].resolve()
     root = dataset_root.resolve()
@@ -224,16 +247,27 @@ def require_training_authorization(
         and record.training_manifest_sha256 == current_manifest_sha256
     ]
     if not exact:
-        raise ValueError("authorization does not match the current candidate and training manifests")
+        raise ValueError(
+            "authorization does not match the current candidate and training manifests"
+        )
     if len(exact) != 1:
         raise ValueError("multiple matching authorization records are ambiguous")
     authorization = exact[0]
+    if training_targets_manifest is not None:
+        if (
+            authorization.schema_version != "phase10i-authorization-1.1"
+            or authorization.training_targets_manifest_sha256
+            != manifest_sha256(training_targets_manifest)
+        ):
+            raise ValueError("authorization does not match the training targets manifest")
+    elif authorization.schema_version == "phase10i-authorization-1.1":
+        raise ValueError("task authorization requires its bound training targets manifest")
     if authorization.decision != "APPROVE":
         raise ValueError("dataset training authorization is not approved")
     if (
         authorization.governance_decision != "approved"
         or authorization.privacy_decision != "approved"
-        or "local_training" not in authorization.approved_usage_scopes
+        or required_scope not in authorization.approved_usage_scopes
         or (
             "cloud_training" in authorization.approved_usage_scopes
             and authorization.cloud_processing_decision != "approved"

@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from pathlib import Path
 
 from agents.command_agent.agent import CommandAgent
@@ -13,7 +14,7 @@ from communication.messages import (
     IncidentUpdate,
     MissionUpdate,
 )
-from interfaces.providers import CoordinationPolicy
+from interfaces.providers import CoordinationPolicy, PerceptionProvider
 from simulation.adapters.communications import SimulationNetwork
 from simulation.adapters.coordination import (
     AssignmentFixture,
@@ -35,6 +36,7 @@ class Fleet:
         command: CommandSettings | None = None,
         coordination: PolicyName | None = None,
         policy: CoordinationPolicy | None = None,
+        perception_factory: Callable[[str], PerceptionProvider] | None = None,
     ):
         self.network = (
             SimulationNetwork(e, share_peers=coordination not in ("fixed_sector", "independent"))
@@ -66,8 +68,15 @@ class Fleet:
             )
             if path is None and (coordination or policy):
                 settings = settings.model_copy(update={"movement": True})
-        self.agents = {
-            a: DroneAgent(
+        self.agents: dict[str, DroneAgent] = {}
+        provider_ids: set[int] = set()
+        for a in e.drones:
+            perception = perception_factory(a) if perception_factory is not None else None
+            if perception is not None and id(perception) in provider_ids:
+                raise ValueError("perception factory must create independent per-agent providers")
+            if perception is not None:
+                provider_ids.add(id(perception))
+            self.agents[a] = DroneAgent(
                 a,
                 e.mission_id,
                 settings,
@@ -75,9 +84,8 @@ class Fleet:
                 frozenset(e.config.terrain.get("restricted", ())),
                 mailbox=self.network.mail[a] if self.network else None,
                 base=Cell(x=e.base[0], y=e.base[1]),
+                perception=perception,
             )
-            for a in e.drones
-        }
 
         for a in self.agents.keys() - set(e.active):
             self.agents[a].health.status = "unavailable"

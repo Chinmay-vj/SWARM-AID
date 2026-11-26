@@ -5,11 +5,16 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+*.cache/
 *.egg-info/
 build/
 dist/
 .env
 runs/
+wandb/
+tensorboard/
+mlruns/
+lightning_logs/
 node_modules/
 .env.*
 !.env.example

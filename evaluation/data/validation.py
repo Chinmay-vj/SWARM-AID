@@ -189,7 +189,10 @@ def validate(
                 if verify_files:
                     inspect_media(path, s)
             if s.annotation:
-                if any(label not in dataset.label_definitions for label in s.annotation.labels):
+                if any(
+                    label not in dataset.label_definitions
+                    for label in (*s.annotation.labels, *s.annotation.box_labels)
+                ):
                     raise ValueError("undefined annotation label")
                 path = inspect_asset(
                     root, s.annotation.asset, ANNOTATIONS[s.annotation.format], verify_files

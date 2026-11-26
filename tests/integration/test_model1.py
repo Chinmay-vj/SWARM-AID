@@ -4,7 +4,16 @@ import pytest
 
 from agents.drone_agent.agent import DroneAgent
 from agents.drone_agent.components import Settings
-from agents.shared.domain import Action, Cell, DroneState, Intent, LocalView, SensorFrame, TaskLease
+from agents.shared.domain import (
+    Action,
+    Cell,
+    DroneState,
+    Finding,
+    Intent,
+    LocalView,
+    SensorFrame,
+    TaskLease,
+)
 from simulation.adapters.model1 import Fleet
 from simulation.core.configuration import Scenario, load
 from simulation.core.engine import Engine, Move
@@ -31,6 +40,36 @@ def test_fleet(count: int) -> None:
         assert all(f.observation.evidence[0].origin == a for f in agent.memory.items.values())
         assert agent.logs[-1]["outcome"] == "applied"
         assert any(m.payload.message_type == "heartbeat" for m in agent.mail.sent)
+
+
+def test_injected_perception_providers_have_independent_agent_state() -> None:
+    class AgentProvider:
+        def __init__(self, owner: str) -> None:
+            self.owner = owner
+            self.calls = 0
+
+        def perceive(self, frame: SensorFrame) -> tuple[Finding, ...]:
+            assert frame.agent_id == self.owner
+            self.calls += 1
+            return ()
+
+    created: dict[str, AgentProvider] = {}
+
+    def factory(owner: str) -> AgentProvider:
+        provider = AgentProvider(owner)
+        created[owner] = provider
+        return provider
+
+    e = engine(3)
+    fleet = Fleet(e, perception_factory=factory)
+    assert len({id(provider) for provider in created.values()}) == 3
+    fleet.advance(e)
+    assert all(provider.calls == 1 for provider in created.values())
+    assert all(fleet.agents[owner].perception is provider for owner, provider in created.items())
+
+    shared = AgentProvider("d0")
+    with pytest.raises(ValueError, match="independent per-agent"):
+        Fleet(engine(2), perception_factory=lambda _owner: shared)
 
 
 def test_replay_and_hidden_truth() -> None:
