@@ -1,0 +1,128 @@
+{
+  "version": "2",
+  "scenario_id": "cyclone_field",
+  "disaster": "cyclone",
+  "seed": 1001,
+  "horizon": 38,
+  "width": 11,
+  "height": 9,
+  "people": 3,
+  "hazards": 2,
+  "false_positive": 0.008,
+  "noise": 0.08,
+  "field_profile": {
+    "difficulty": "moderate",
+    "search_region": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 1,
+        "y": 5
+      },
+      {
+        "x": 2,
+        "y": 5
+      },
+      {
+        "x": 3,
+        "y": 4
+      },
+      {
+        "x": 4,
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 5
+      },
+      {
+        "x": 7,
+        "y": 6
+      }
+    ],
+    "alternate_disabled": [
+      "thermal"
+    ],
+    "windows": [
+      {
+        "start": 3,
+        "stop": 12,
+        "radius": 0,
+        "disabled": [
+          "image"
+        ],
+        "condition": "rain_squall"
+      }
+    ]
+  },
+  "terrain": {
+    "road": [
+      {
+        "x": 2,
+        "y": 3
+      },
+      {
+        "x": 4,
+        "y": 6
+      }
+    ],
+    "water": [
+      {
+        "x": 3,
+        "y": 3
+      },
+      {
+        "x": 5,
+        "y": 6
+      }
+    ],
+    "weak_radio": [
+      {
+        "x": 4,
+        "y": 3
+      },
+      {
+        "x": 6,
+        "y": 6
+      }
+    ]
+  },
+  "events": [
+    {
+      "step": 4,
+      "cell": {
+        "x": 2,
+        "y": 2
+      },
+      "terrain": "weak_radio"
+    },
+    {
+      "step": 11,
+      "cell": {
+        "x": 3,
+        "y": 2
+      },
+      "terrain": "damaged"
+    },
+    {
+      "step": 20,
+      "cell": {
+        "x": 2,
+        "y": 2
+      },
+      "terrain": "road"
+    }
+  ],
+  "delay": 3,
+  "network": {
+    "jitter": 4,
+    "server_down": [
+      7,
+      8,
+      9,
+      10
+    ]
+  }
+}

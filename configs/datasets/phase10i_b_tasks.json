@@ -1,0 +1,196 @@
+{
+  "schema_version": "1.0",
+  "phase": "10I-B",
+  "status": "NOT_STARTED",
+  "scope": "Inventory of technical blockers only; no split reconstruction, raw-data changes, training, or approval.",
+  "tasks": [
+    {
+      "id": "heridal-sard-parent-groups-and-empty-annotations",
+      "datasets": ["HERIDAL", "SARD"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "Parent-flight and site groups are not established.",
+        "Empty image annotations need source-level interpretation; do not treat them as confirmed negatives without evidence."
+      ],
+      "existing_metadata": [
+        "Phase 10G per-image index fields: path, source, split, image_id, categories, annotations.",
+        "SARD export folder and COCO filenames indicate a Roboflow v17 3x3-tile export.",
+        "Publisher/export documentation and original capture metadata may contain parent-frame, flight, site, and annotation-policy information."
+      ],
+      "metadata_gaps": [
+        "No verified parent-frame, flight, or site identifier is present in the indexed records.",
+        "The annotation policy for empty images is not established."
+      ],
+      "required_work": "Trace available source/export metadata without inventing capture identifiers; determine empty-annotation semantics and group complete parents before any split design.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "flame-near-test-training-frames",
+      "datasets": ["FLAME"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "491 training frames are near test frames."
+      ],
+      "existing_metadata": [
+        "Phase 10G index fields include path, split, task, and source class label.",
+        "Local source directories distinguish training and test files; the originating FLAME distribution documentation may identify source videos."
+      ],
+      "metadata_gaps": [
+        "Parent-video or capture-session identifiers are not verified in the local index."
+      ],
+      "required_work": "Resolve source-video lineage or independently review the near-test candidates; preserve original publisher splits until grouping is supported.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "flame-unpaired-segmentation-masks",
+      "datasets": ["FLAME"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "2,003 masks do not have verified image pairs."
+      ],
+      "existing_metadata": [
+        "Phase 10G index identifies the mask path and marks the task as unpaired_mask.",
+        "Local archive/directory names distinguish the mask component from classification frames."
+      ],
+      "metadata_gaps": [
+        "No authoritative image-to-mask pair key is verified."
+      ],
+      "required_work": "Locate an authoritative source pairing record or retain masks as unusable for paired training; do not infer pairs from filenames alone.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "floodnet-rescuenet-site-event-groups",
+      "datasets": ["FloodNet", "RescueNet"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "Publisher splits are known, but site/event independence is not established."
+      ],
+      "existing_metadata": [
+        "Phase 10G indexes retain image paths, publisher split labels, source categories, and mask associations.",
+        "Publisher release documentation and image acquisition metadata may identify event, site, flight, or geographic groups."
+      ],
+      "metadata_gaps": [
+        "No verified site/event key is present in the reviewed index."
+      ],
+      "required_work": "Inspect existing publisher metadata for authoritative site/event groups before proposing any independent evaluation.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "wisard-flagged-records-and-pairing",
+      "datasets": ["WiSARD"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "1,275 records are flagged for review.",
+        "Zero RGB-thermal pairs are verified."
+      ],
+      "existing_metadata": [
+        "Phase 10G index fields include path, sequence folder, modality, paired flag, annotation, and content hash.",
+        "Sequence-folder names distinguish visible and infrared streams; authoritative capture IDs, timestamps, calibration, and synchronization records may exist in the source release."
+      ],
+      "metadata_gaps": [
+        "Folder similarity alone does not establish synchronized or geometrically aligned pairs.",
+        "The authoritative WiSARD edition and complete acquisition metadata are unverified."
+      ],
+      "required_work": "Review flagged records and locate authoritative capture, synchronization, and calibration metadata; do not create pairs from folder names alone.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "esc50-cross-fold-recordings",
+      "datasets": ["ESC-50"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "Four recording IDs cross official folds."
+      ],
+      "existing_metadata": [
+        "The official metadata CSV includes filename, fold, category, target, source-file recording ID, and take fields."
+      ],
+      "metadata_gaps": [
+        "The four cross-fold recording groups require a reviewed exclusion/benchmark disposition."
+      ],
+      "required_work": "Use the official recording identifiers to keep or exclude complete recording groups; retain publisher folds as source evidence.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "humaid-cross-partition-text-keys",
+      "datasets": ["HumAID"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "Four normalized whole-text keys cross publisher partitions.",
+        "Per-row event and original post identifiers are unavailable in the local Parquet schema."
+      ],
+      "existing_metadata": [
+        "Three Parquet shard names encode train, validation, and test partitions; rows contain tweet_text and class_label.",
+        "The QCRI dataset card describes the event collection, but the inspected local rows do not map records to those events."
+      ],
+      "metadata_gaps": [
+        "No row-level event, post, or source-recording identifier is available for group-level adjudication."
+      ],
+      "required_work": "Review the complete duplicate text groups and seek authorized publisher metadata; do not infer event or author identity from text.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "crisismmd-repeated-events-and-media",
+      "datasets": ["CrisisMMD"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "All seven events cross task partitions.",
+        "Pooling tasks repeats posts and image media across split names."
+      ],
+      "existing_metadata": [
+        "Seven event TSVs retain event, post/image references, task labels, and publisher partitions.",
+        "The local image paths and content hashes identify exact repeated media; task-view indexes preserve task identity."
+      ],
+      "metadata_gaps": [
+        "A combined unseen-event evaluation and the rights to underlying posts/media are unresolved."
+      ],
+      "required_work": "Select a task-specific estimand, group event/post/media identity across task views, and resolve rights before any release.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "smoke-usgs-missing-split-assignments",
+      "datasets": ["Smoke Detection IoT", "USGS Water Data"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "Smoke Detection IoT and USGS records have no approved split assignments."
+      ],
+      "existing_metadata": [
+        "Smoke source rows expose time, sensor channels, and the published alarm target; source project documentation may clarify collection runs.",
+        "USGS export retains period summaries and station/parameter metadata; the source API provides parameter and qualifier definitions."
+      ],
+      "metadata_gaps": [
+        "No task-specific independent capture/run grouping or approved split policy is established."
+      ],
+      "required_work": "Verify source metadata, chronology, and capture groups before defining a split; do not assign records during Phase 10I-A.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    },
+    {
+      "id": "sensor-horizon-units-and-overlapping-windows",
+      "datasets": ["Smoke Detection IoT", "UCI Air Quality", "USGS Water Data"],
+      "status": "NOT_STARTED",
+      "blockers": [
+        "Prediction horizon and target definition are not specified across sensor tasks.",
+        "Channel units and source-specific missingness/qualifier semantics need explicit mapping.",
+        "Overlapping time windows may share measurements across partitions."
+      ],
+      "existing_metadata": [
+        "Source CSV headers, timestamps, UCI data dictionary and missing-value sentinel, Smoke project/schema documentation, and USGS parameter/qualifier metadata.",
+        "Existing UCI day groups and timestamps support a future chronological purge analysis."
+      ],
+      "metadata_gaps": [
+        "No approved target horizon, unit-normalization contract, or window-purge policy exists."
+      ],
+      "required_work": "Document units and target horizons, define causal windows, and measure overlap only after Phase 10I-B is authorized.",
+      "training_approved": false,
+      "large_scale_split_reconstruction_allowed": false
+    }
+  ]
+}

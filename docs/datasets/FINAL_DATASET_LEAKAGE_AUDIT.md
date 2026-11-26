@@ -1,0 +1,19 @@
+# Final split and leakage audit
+
+| Source | Confirmed observation | Consequence and disposition |
+|---|---|---|
+| HERIDAL, SARD | No within-index exact media keys span official splits. SARD v17 contains 3×3 tiles resized to 640×640. | Parent capture and site independence unresolved. Retain official splits for description. |
+| FloodNet, RescueNet | Paired class masks resolve and publisher splits are preserved. | Event/site independence remains unverified. |
+| FLAME | 39 exact repeat frames/files beyond first appearances. 491 training frames have a perceptual hash within three bits of at least one test frame. | Exact split overlap measured as zero. Similarity is a candidate signal. Hold classification benchmarking until video IDs or a reviewed grouped split exist. |
+| WiSARD | 27 exact repeats. Sequence folders identify capture streams. No verified pair groups. | Keep streams and related flights together when linkage becomes available. |
+| ESC-50 | Four recording IDs span official folds. | The separately versioned review overlay retains fold labels and excludes every member of the four groups from independent comparisons. |
+| HumAID | Four normalized whole-text keys cross splits. Event and original post IDs unavailable. | Exclude the four complete keys under the review overlay. Source-level event independence remains unknown. |
+| CrisisMMD | All seven events cross splits; pooling task views places 7,605 image hashes in multiple splits. | Keep original task/split in the record. Combined or unseen-event benchmark blocked. |
+| Across sources | No exact image bytes shared between audited visual sources or with CrisisMMD. HumAID/CrisisMMD whole-text intersection zero; earlier 12-token screen flagged 220 HumAID rows. | Shared passages, adjacent frames and undisclosed events still require adjudication. |
+| Stationary sensors | UCI grouped days give 6,558 train / 1,392 validation / 1,407 test. Smoke and USGS cannot form three independent chronological blocks. | All 62,630 Smoke and 36 USGS rows remain unassigned. UCI requires a task-specific lookback purge before fitting. |
+
+**Native pilot exception.** Across all focal and prior receipts, 180 bare evidence UUIDs occur in train/test, 49 in all three partitions, 22 in validation/test and eight in train/validation. These 259 identifier collisions touch every one of the 13 pilot episodes. The original contract scopes evidence provenance by mission; the legacy sensor UUID recipe reuses agent/tick/modality slots. Identifier reuse establishes a collision and does not by itself prove identical observations. The Phase 10H private split overlay excludes the affected whole episodes from a pooled bare-ID comparison. Retain the pilot as a separately governed integrity/evaluation artifact.
+
+Across six field batches there were zero evidence UUIDs crossing partitions and zero shared with the pilot. The previously measured 20 field rows matching simplified pilot development patterns still limit content independence. Native validators check complete episodes, scenario/seed assignments and controlled-parent reconstruction. Protected seeds 42–46 occurred only in pilot test partitions; the expanded release and matched comparisons use development seeds. Mixed reserved releases are rejected by development loaders. Phase 10H performed no augmentation, fitting, tuning or model selection. Historical activity outside the inspected releases cannot be certified.
+
+No production normalizer was issued. RGB letterboxing, mask nearest-neighbor resizing and audio resampling have fixed parameters. Numeric missingness is retained. A future fitted transform requires a verified operational manifest, eligible train rows, seed checks and a frozen parameter checksum. The as-of feature validator reconstructs the operational export from receipts; targets, evaluator colocation, seed, split, variant and future outcomes stay outside that projection. [Reproduction](DATASET_RELEASE_MANIFEST.md)

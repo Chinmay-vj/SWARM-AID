@@ -1,0 +1,112 @@
+{
+  "version": "2",
+  "scenario_id": "missing_person_field",
+  "disaster": "missing_person",
+  "seed": 1001,
+  "horizon": 38,
+  "width": 11,
+  "height": 9,
+  "people": 1,
+  "hazards": 0,
+  "false_positive": 0.04,
+  "noise": 0.08,
+  "field_profile": {
+    "difficulty": "moderate",
+    "search_region": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 1,
+        "y": 5
+      },
+      {
+        "x": 2,
+        "y": 5
+      },
+      {
+        "x": 3,
+        "y": 4
+      },
+      {
+        "x": 4,
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 5
+      },
+      {
+        "x": 7,
+        "y": 6
+      }
+    ],
+    "alternate_disabled": [
+      "thermal"
+    ],
+    "windows": [
+      {
+        "start": 5,
+        "stop": 14,
+        "radius": 1,
+        "disabled": [
+          "thermal"
+        ],
+        "condition": "dusk_search"
+      }
+    ]
+  },
+  "terrain": {
+    "trail": [
+      {
+        "x": 2,
+        "y": 3
+      },
+      {
+        "x": 4,
+        "y": 6
+      }
+    ],
+    "brush": [
+      {
+        "x": 3,
+        "y": 3
+      },
+      {
+        "x": 5,
+        "y": 6
+      }
+    ],
+    "road": [
+      {
+        "x": 4,
+        "y": 3
+      },
+      {
+        "x": 6,
+        "y": 6
+      }
+    ]
+  },
+  "events": [
+    {
+      "step": 8,
+      "cell": {
+        "x": 1,
+        "y": 3
+      },
+      "terrain": "brush"
+    },
+    {
+      "step": 18,
+      "cell": {
+        "x": 1,
+        "y": 3
+      },
+      "terrain": "trail"
+    }
+  ],
+  "moving_people": true,
+  "mission_objective": "Survey the authorized trail region and submit uncertain sightings for human review"
+}

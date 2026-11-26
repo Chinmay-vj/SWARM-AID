@@ -48,14 +48,22 @@ class Engine:
     def reset(self, seed: int) -> None:
         c = self.config
         self.mission_id = uuid5(NAMESPACE_OID, c.scenario_id)
+        if c.field_profile:
+            self.mission_id = uuid5(
+                self.mission_id, f"v2/{seed}/{c.agents}/{c.field_profile.difficulty}"
+            )
         self.seed = seed
         self.t = 0
         self.world = REGISTRY[c.disaster](c)
         free = [p for p, v in self.world.tiles.items() if v not in BLOCKED]
         self.base = next((p for p in free if self.world.tiles[p] == "base"), free[0])
+        placement = free
+        if c.field_profile and c.field_profile.search_region:
+            region = {(cell.x, cell.y) for cell in c.field_profile.search_region}
+            placement = [p for p in free if p in region]
         self.people = {
             p: Person(str(i), p, not c.hidden_people, c.moving_people)
-            for i, p in enumerate(Random(f"{seed}/people").sample(free, c.people))
+            for i, p in enumerate(Random(f"{seed}/people").sample(placement, c.people))
         }
         candidates = [p for p in free if self.world.tiles[p] == self.world.ground]
         if c.hazards > len(candidates):

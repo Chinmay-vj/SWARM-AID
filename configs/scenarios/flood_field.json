@@ -1,0 +1,127 @@
+{
+  "version": "2",
+  "scenario_id": "flood_field",
+  "disaster": "flood",
+  "seed": 1001,
+  "horizon": 38,
+  "width": 11,
+  "height": 9,
+  "people": 3,
+  "hazards": 2,
+  "false_positive": 0.008,
+  "noise": 0.08,
+  "field_profile": {
+    "difficulty": "moderate",
+    "search_region": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 1,
+        "y": 5
+      },
+      {
+        "x": 2,
+        "y": 5
+      },
+      {
+        "x": 3,
+        "y": 4
+      },
+      {
+        "x": 4,
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 5
+      },
+      {
+        "x": 7,
+        "y": 6
+      }
+    ],
+    "alternate_disabled": [
+      "thermal"
+    ],
+    "windows": [
+      {
+        "start": 4,
+        "stop": 13,
+        "radius": 2,
+        "disabled": [
+          "image"
+        ],
+        "condition": "rising_water"
+      }
+    ]
+  },
+  "terrain": {
+    "road": [
+      {
+        "x": 2,
+        "y": 3
+      },
+      {
+        "x": 4,
+        "y": 6
+      }
+    ],
+    "water": [
+      {
+        "x": 3,
+        "y": 3
+      },
+      {
+        "x": 5,
+        "y": 6
+      }
+    ],
+    "base": [
+      {
+        "x": 4,
+        "y": 3
+      },
+      {
+        "x": 6,
+        "y": 6
+      }
+    ]
+  },
+  "events": [
+    {
+      "step": 4,
+      "cell": {
+        "x": 2,
+        "y": 1
+      },
+      "terrain": "water"
+    },
+    {
+      "step": 9,
+      "cell": {
+        "x": 2,
+        "y": 2
+      },
+      "terrain": "water"
+    },
+    {
+      "step": 15,
+      "cell": {
+        "x": 3,
+        "y": 2
+      },
+      "terrain": "blocked"
+    },
+    {
+      "step": 23,
+      "cell": {
+        "x": 2,
+        "y": 1
+      },
+      "terrain": "silt"
+    }
+  ],
+  "loss": 0.04
+}

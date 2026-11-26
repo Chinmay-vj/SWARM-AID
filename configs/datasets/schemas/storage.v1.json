@@ -1,0 +1,22 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "root": {
+      "minLength": 1,
+      "pattern": "\\S",
+      "title": "Root",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "root",
+    "schema_version"
+  ],
+  "title": "Storage",
+  "type": "object"
+}

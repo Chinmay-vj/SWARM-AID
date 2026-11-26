@@ -1,0 +1,114 @@
+{
+  "schema_version": "phase10i-b1-c1-model1-1.0",
+  "phase": "10I-B1/C1",
+  "scope": "Model 1 public-source candidate preparation and audit only",
+  "status": "COMPLETE_PENDING_HUMAN_REVIEW",
+  "decision": "NO_GO",
+  "candidate_release": "D:\\SWARM-AID-DATA\\manifests\\phase10i-b1-c1-v1",
+  "frozen_phase10h_release_sha256": "81b0ed436ce8e2bc3ec260f85a87dc89c28f95dc585e3309d8ae3e88c57e11b8",
+  "candidate_manifest_files": [
+    "candidate_manifests/flame-fire-classification-v1.json",
+    "candidate_manifests/esc50-official-folds-v1.json",
+    "candidate_manifests/uci-co-next-hour-24h-v1.json"
+  ],
+  "tasks": [
+    {
+      "task": "RGB person detection",
+      "sources": ["HERIDAL", "SARD"],
+      "status": "BLOCKED",
+      "blockers": ["Parent flight/site groups unavailable", "Empty annotations require source-policy review", "Governance pending"]
+    },
+    {
+      "task": "RGB fire classification",
+      "sources": ["FLAME"],
+      "status": "BLOCKED",
+      "candidate_manifest": "candidate_manifests/flame-fire-classification-v1.json",
+      "blockers": ["491 training frames near official test frames excluded", "Parent video groups unavailable", "Governance pending"]
+    },
+    {
+      "task": "FloodNet semantic segmentation",
+      "sources": ["FloodNet"],
+      "status": "BLOCKED",
+      "blockers": ["Site/capture groups unavailable", "Governance pending"]
+    },
+    {
+      "task": "RescueNet semantic segmentation",
+      "sources": ["RescueNet"],
+      "status": "BLOCKED",
+      "blockers": ["Site/capture groups unavailable", "Dataset terms and privacy review pending"]
+    },
+    {
+      "task": "RescueNet infrastructure damage assessment",
+      "sources": ["RescueNet"],
+      "status": "BLOCKED",
+      "blockers": ["Damage-grade semantics require independent review", "Site groups and governance unresolved"]
+    },
+    {
+      "task": "FLAME fire segmentation",
+      "sources": ["FLAME"],
+      "status": "BLOCKED",
+      "blockers": ["2,003 masks have no verified image pair"]
+    },
+    {
+      "task": "WiSARD thermal perception",
+      "sources": ["WiSARD"],
+      "status": "BLOCKED",
+      "blockers": ["1,275 flagged annotations unadjudicated", "11,542 missing sidecars", "Display-coded imagery is not calibrated temperature"]
+    },
+    {
+      "task": "WiSARD RGB-thermal pairing",
+      "sources": ["WiSARD"],
+      "status": "BLOCKED",
+      "blockers": ["Zero verified pairs", "Synchronization, alignment, calibration, and capture IDs unavailable"]
+    },
+    {
+      "task": "ESC-50 environmental sound classification",
+      "sources": ["ESC-50"],
+      "status": "BLOCKED",
+      "candidate_manifest": "candidate_manifests/esc50-official-folds-v1.json",
+      "blockers": ["Nine clips in four cross-fold recording groups excluded", "Clip-specific terms and attribution require review"]
+    },
+    {
+      "task": "Smoke Detection IoT time-series classification",
+      "sources": ["Smoke"],
+      "status": "BLOCKED",
+      "blockers": ["Five runs reduce to three repeated sensor-signature groups", "Run identity and label provenance unresolved"]
+    },
+    {
+      "task": "UCI next-hour CO concentration",
+      "sources": ["UCI"],
+      "status": "BLOCKED",
+      "candidate_manifest": "candidate_manifests/uci-co-next-hour-24h-v1.json",
+      "blockers": ["Temporal-only candidate does not establish site generalization", "Source rights statements require reconciliation"]
+    },
+    {
+      "task": "USGS interval hydrology",
+      "sources": ["USGS"],
+      "status": "BLOCKED",
+      "blockers": ["36 overlapping interval summaries are not a continuous series", "Flood-event labels and split assignment unavailable"]
+    },
+    {
+      "task": "Native Model 1 symbolic observation processing",
+      "sources": ["native Model 1"],
+      "status": "BLOCKED",
+      "blockers": ["Native and protected records were not accessed", "Independent human evaluation protocol pending"]
+    },
+    {
+      "task": "Native Model 1 structured report generation",
+      "sources": ["native Model 1"],
+      "status": "BLOCKED",
+      "blockers": ["Delivery-selected reports are not independent targets", "Private pilot and alert-journal data remain outside scope"]
+    }
+  ],
+  "controls": {
+    "training_approved": false,
+    "approved_training_records": 0,
+    "governance_approvals_granted": 0,
+    "human_annotations_created": false,
+    "model_training_performed": false,
+    "raw_data_modified": false,
+    "phase10i_d1_or_e1_started": false,
+    "phase11_started": false,
+    "model2_scope_included": false
+  }
+}

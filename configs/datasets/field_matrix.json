@@ -1,0 +1,10 @@
+{
+  "version": "field-v1",
+  "families": {
+    "flood_field": "train", "wildfire_field": "train", "earthquake_field": "train",
+    "cyclone_field": "validation", "landslide_field": "validation", "missing_person_field": "train"
+  },
+  "episodes_per_family": 12, "per_episode": 80, "first_seed": 1100,
+  "fleets": [1, 2, 3, 5, 8], "levels": ["easy", "moderate", "difficult"],
+  "budget_bytes": 268435456, "free_reserve_bytes": 536870912
+}

@@ -33,13 +33,31 @@ def sense(
     seen = set()
     footprint = set()
     misses = false = 0
+    radius, dropout, miss, score = cfg.radius, cfg.dropout, cfg.miss, 0.6
+    disabled: set[str] = set()
+    namespace = NAMESPACE_OID
+    if profile := cfg.field_profile:
+        severity = {"easy": 0, "moderate": 1, "difficult": 2}[profile.difficulty]
+        dropout = min(1.0, dropout + 0.04 * severity)
+        miss = min(1.0, miss + 0.12 * severity)
+        score -= 0.08 * severity
+        namespace = uuid5(
+            NAMESPACE_OID, f"{cfg.scenario_id}/{seed}/{cfg.agents}/{profile.difficulty}"
+        )
+        if int(agent.removeprefix("d")) % 2:
+            disabled.update(profile.alternate_disabled)
+        for window in profile.windows:
+            if window.start <= t < window.stop:
+                radius = min(radius, window.radius)
+                disabled.update(window.disabled)
+                score -= 0.08
     for mode in cfg.modalities:
         rng = Random(f"{seed}/{agent}/{t}/{mode}")
-        if rng.random() < cfg.dropout:
+        if mode in disabled or rng.random() < dropout:
             continue
 
         def add(value: str, p: Point | None, score: float = 1.0, modality: str = mode) -> None:
-            uid = uuid5(NAMESPACE_OID, f"{agent}/{t}/{modality}/{len(readings)}")
+            uid = uuid5(namespace, f"{agent}/{t}/{modality}/{len(readings)}")
             readings.append(
                 Reading(
                     evidence=Evidence(
@@ -57,13 +75,18 @@ def sense(
 
         if mode in ("image", "thermal", "environment"):
             for p, tile in tiles.items():
-                if abs(p[0] - pos[0]) + abs(p[1] - pos[1]) > cfg.radius:
+                if abs(p[0] - pos[0]) + abs(p[1] - pos[1]) > radius:
                     continue
                 footprint.add(p)
-                add(tile, p)
+                if profile and cfg.noise and rng.random() < cfg.noise:
+                    add("indistinct", p, score)
+                elif profile and mode == "thermal" and tile == "fire":
+                    add("thermal_anomaly", p, score)
+                else:
+                    add(tile, p)
                 if mode == "environment" or tile in ("debris", "building", "smoke", "damaged"):
                     continue
-                detected = rng.random() >= cfg.miss
+                detected = rng.random() >= miss
                 spurious = rng.random() < cfg.false_positive
                 noisy = rng.random() < cfg.noise
                 if p in people:
@@ -74,7 +97,7 @@ def sense(
                 elif spurious:
                     false += 1
                 if (p in people and detected) or (p not in people and spurious):
-                    add("possible_human", pos if noisy else p, 0.6)
+                    add("possible_human", pos if noisy else p, score)
         else:
             add(
                 {"gps": "position", "imu": heading, "text": "survey permitted cells"}[mode],

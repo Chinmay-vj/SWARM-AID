@@ -1,0 +1,1 @@
+{"scenarios":["flood_field","missing_person_field"],"agents":[3,5],"seeds":[1801,1802],"policies":["independent","fixed_sector","shared_information"]}

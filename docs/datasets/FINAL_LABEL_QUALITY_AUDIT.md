@@ -1,0 +1,9 @@
+# Final label quality audit
+
+The [source mapping](DATASET_LABEL_MAPPING.md) defines separate targets for image regions, mask pixels, sound categories, stationary measurements, social-media context and native evidence relationships. The [measured class counts](FINAL_CLASS_BALANCE_REPORT.md) retain the original classes. Source annotations can describe a person, a building or a sound without establishing rescue need. Smoke alarms are experimental targets. USGS quality flags describe a measurement product.
+
+Field targets comprise 4,969 rule-derived and six unresolved examples. The pilot has 508 rule-derived and two unresolved. The field target set includes 63 conflicting and 12 duplicate relationships; neither relation determines urgency. Of 4,975 field targets, 1,679 lack an assessment, 3,606 lack urgency, 1,393 carry uncertainty and 1,369 contain a rule-generated recommendation. There are zero human-approved recommendations. An empty reviewer field, absent assessment or missing sidecar cannot supply a reviewed negative. The native validator checked as-of receipts, evidence references, controlled parents, recommendations and expiry.
+
+HERIDAL and SARD use original COCO category IDs, with named boxes for person and human respectively. FloodNet IDs 0–9 and RescueNet IDs 0–10 survived class-index validation. RescueNet's text note says ten classes but enumerates eleven IDs including background. Unpaired FLAME masks have no valid corresponding supervised target. WiSARD's valid normalized boxes retain the native class identifier; invalid sidecars are excluded. Public source label accuracy, annotator independence and class-specific noise rates remain unmeasured.
+
+No independent judgments exist for agreement or adjudication statistics. The weak target source and first-look review have separate provenance. [Human annotation status](../research/HUMAN_ANNOTATION_STATUS.md)

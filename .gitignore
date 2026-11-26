@@ -21,3 +21,8 @@ node_modules/
 *.pth
 datasets/**
 !datasets/.gitkeep
+# Keep private releases under datasets/; reviewed metadata belongs in configs/datasets/.
+*.onnx
+*.ckpt
+*.gguf
+*.part

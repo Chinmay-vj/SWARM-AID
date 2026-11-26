@@ -1,3 +1,4 @@
+from itertools import pairwise
 from pathlib import Path
 from typing import Literal, Self
 
@@ -13,8 +14,41 @@ class Event(Record):
     terrain: str
 
 
+Difficulty = Literal["easy", "moderate", "difficult"]
+Sensor = Literal["image", "thermal", "gps", "imu", "environment", "text"]
+
+
+class ObservationWindow(Record):
+    start: NonNegativeInt
+    stop: PositiveInt
+    radius: NonNegativeInt
+    disabled: tuple[Sensor, ...] = ()
+    condition: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def interval(self) -> Self:
+        if self.start >= self.stop:
+            raise ValueError("empty observation window")
+        return self
+
+
+class FieldProfile(Record):
+    difficulty: Difficulty = "moderate"
+    search_region: tuple[Cell, ...] = ()
+    windows: tuple[ObservationWindow, ...] = ()
+    alternate_disabled: tuple[Sensor, ...] = ()
+
+    @model_validator(mode="after")
+    def windows_disjoint(self) -> Self:
+        ordered = sorted(self.windows, key=lambda w: w.start)
+        if any(a.stop > b.start for a, b in pairwise(ordered)):
+            raise ValueError("overlapping observation windows")
+        return self
+
+
 class Scenario(Record):
-    version: Literal["1"] = "1"
+    version: Literal["1", "2"] = "1"
+    field_profile: FieldProfile | None = None
     scenario_id: str
     disaster: str
     width: PositiveInt = 12
@@ -62,6 +96,16 @@ class Scenario(Record):
 
         if self.disaster not in REGISTRY:
             raise ValueError("unknown disaster profile")
+        if (self.version == "2") != (self.field_profile is not None):
+            raise ValueError("version 2 requires a field profile")
+        if self.field_profile:
+            region = self.field_profile.search_region
+            if len(set(region)) != len(region) or any(
+                c.x >= self.width or c.y >= self.height for c in region
+            ):
+                raise ValueError("invalid search region")
+            if region and len(region) < self.people:
+                raise ValueError("search region too small")
         for member, sector in self.sectors.items():
             if member not in {f"d{i}" for i in range(self.agents)} or not sector:
                 raise ValueError("invalid sector assignment")

@@ -42,7 +42,13 @@ class Cyclone(Disaster):
     hazard = "water"
 
 
+class Search(Disaster):
+    ground = "trail"
+    hazard = "obstacle"
+
+
 REGISTRY: dict[str, type[Disaster]] = {
+    "missing_person": Search,
     "landslide": Landslide,
     "cyclone": Cyclone,
     "flood": Flood,

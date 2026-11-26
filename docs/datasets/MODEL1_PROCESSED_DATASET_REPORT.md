@@ -1,0 +1,5 @@
+# Model 1 symbolic records
+
+The field replay archive contains 9,465 delivered Model 1 reports from 72 episodes. The Phase 10E release validator checked each native report against its receipt, journal record, source episode, seed, agent and reading evidence. The Phase 10F replay index retains observed modality availability by report ID. The recorded availability was complete in 3,311 reports and incomplete in 6,154. The separate evaluator archive contains same-cell references.
+
+The development loader yields the local readings and report from the indexed native source. The release joins retain scenario, agent, capture and receipt times, provider name, configured transport and episode identity. The dataset samples delivered reports and therefore cannot measure every local observation or every lost report. These data support protocol and judgment development. The symbolic readings provide no raw imagery, waveforms or calibrated sensor values. Human-approved physical perception examples contributed zero records. [Original field release](../PHASE_10F_FIELD_REPORT.md)

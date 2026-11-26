@@ -1,0 +1,130 @@
+{
+  "version": "2",
+  "scenario_id": "landslide_field",
+  "disaster": "landslide",
+  "seed": 1001,
+  "horizon": 38,
+  "width": 11,
+  "height": 9,
+  "people": 3,
+  "hazards": 2,
+  "false_positive": 0.008,
+  "noise": 0.08,
+  "field_profile": {
+    "difficulty": "moderate",
+    "search_region": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 1,
+        "y": 5
+      },
+      {
+        "x": 2,
+        "y": 5
+      },
+      {
+        "x": 3,
+        "y": 4
+      },
+      {
+        "x": 4,
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 5
+      },
+      {
+        "x": 7,
+        "y": 6
+      }
+    ],
+    "alternate_disabled": [
+      "thermal"
+    ],
+    "windows": [
+      {
+        "start": 9,
+        "stop": 18,
+        "radius": 1,
+        "disabled": [
+          "environment"
+        ],
+        "condition": "slope_failure"
+      }
+    ]
+  },
+  "terrain": {
+    "slope": [
+      {
+        "x": 2,
+        "y": 3
+      },
+      {
+        "x": 4,
+        "y": 6
+      }
+    ],
+    "debris": [
+      {
+        "x": 3,
+        "y": 3
+      },
+      {
+        "x": 5,
+        "y": 6
+      }
+    ],
+    "trail": [
+      {
+        "x": 4,
+        "y": 3
+      },
+      {
+        "x": 6,
+        "y": 6
+      }
+    ]
+  },
+  "events": [
+    {
+      "step": 8,
+      "cell": {
+        "x": 4,
+        "y": 1
+      },
+      "terrain": "debris"
+    },
+    {
+      "step": 12,
+      "cell": {
+        "x": 3,
+        "y": 1
+      },
+      "terrain": "debris"
+    },
+    {
+      "step": 16,
+      "cell": {
+        "x": 2,
+        "y": 1
+      },
+      "terrain": "blocked"
+    },
+    {
+      "step": 22,
+      "cell": {
+        "x": 1,
+        "y": 1
+      },
+      "terrain": "debris"
+    }
+  ],
+  "network": {
+    "duplicate": 0.13,
+    "jitter": 2
+  }
+}

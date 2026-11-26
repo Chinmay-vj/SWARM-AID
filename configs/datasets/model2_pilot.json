@@ -1,0 +1,18 @@
+{
+  "per_episode": 40,
+  "episodes": [
+    {"scenario":"flood_basic","seed":101,"agents":3,"split":"train"},
+    {"scenario":"wildfire_basic","seed":102,"agents":4,"split":"train"},
+    {"scenario":"command_routine","seed":103,"agents":3,"split":"train"},
+    {"scenario":"command_conflict","seed":104,"agents":4,"split":"train"},
+    {"scenario":"command_single","seed":105,"agents":1,"split":"train"},
+    {"scenario":"flood_network_duplicate","seed":106,"agents":3,"split":"train"},
+    {"scenario":"cyclone_basic","seed":201,"agents":3,"split":"validation"},
+    {"scenario":"command_missing_modalities","seed":202,"agents":3,"split":"validation"},
+    {"scenario":"earthquake_basic","seed":42,"agents":4,"split":"test"},
+    {"scenario":"landslide_basic","seed":43,"agents":3,"split":"test"},
+    {"scenario":"command_stale","seed":44,"agents":3,"split":"test"},
+    {"scenario":"flood_server_unavailable","seed":45,"agents":3,"split":"test"},
+    {"scenario":"flood_noise","seed":46,"agents":4,"split":"test"}
+  ]
+}

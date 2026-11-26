@@ -146,3 +146,17 @@ powershell -ExecutionPolicy Bypass -File scripts\start_system.ps1 -Headless -Sce
 ```
 
 The dashboard is at http://127.0.0.1:5173 and the API at http://127.0.0.1:8000/docs. See [system architecture](docs/integration/SYSTEM_ARCHITECTURE.md), [operations](docs/integration/SYSTEM_OPERATIONS.md), [component inventory](docs/integration/COMPONENT_INVENTORY.md), [reproducibility](docs/research/REPRODUCIBILITY_GUIDE.md), [CPU baselines](docs/research/CPU_BASELINE_BENCHMARKS.md), the [Phase 9 report](docs/PHASE_9_COMPLETION_REPORT.md) and the [Phase 10 readiness checklist](docs/PHASE_10_READINESS_CHECKLIST.md).
+
+## Phase 10A dataset infrastructure
+
+From the repository root, run `python -m evaluation.data` to validate the candidate registry.
+For a deterministic symbolic example, run
+`python -m evaluation.data --registry tests/fixtures/data/registry.json tests/fixtures/data/symbolic.json`.
+See the [dataset contracts and validation guide](docs/datasets/DATASET_REQUIREMENTS.md) and
+[Phase 10A completion report](docs/PHASE_10A_COMPLETION_REPORT.md).
+
+For the subsequent symbolic dataset and field simulations, see the [Model 2 pilot report](docs/PHASE_10E_COMPLETION_REPORT.md) and [field scenario release, baseline results and verification](docs/PHASE_10F_FIELD_REPORT.md).
+
+The [Phase 10G completion report](docs/PHASE_10G_COMPLETION_REPORT.md) records public dataset preprocessing, measured split overlaps and outstanding human review.
+
+The [Phase 10H completion report](docs/PHASE_10H_COMPLETION_REPORT.md) records the final integrity audit and NO-GO training decision. See the [Phase 10 completion report](docs/PHASE_10_COMPLETION_REPORT.md), [training readiness matrix](docs/datasets/TRAINING_READINESS_MATRIX.md), and [Phase 11 handoff](docs/PHASE_11_HANDOFF.md).

@@ -1,0 +1,361 @@
+{
+  "schema_version": "1.0",
+  "datasets": [
+    {
+      "dataset_id": "heridal",
+      "name": "HERIDAL",
+      "source_organization": "IPSAR project, University of Split and collaborators",
+      "official_url": "http://ipsar.fesb.unist.hr/HERIDAL%20database.html",
+      "citation": "Deep Learning Approach in Aerial Imagery for Supporting Land Search and Rescue Missions, https://doi.org/10.1007/s11263-019-01177-1",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image"
+      ],
+      "annotation_types": [
+        "person regions (verify)"
+      ],
+      "tasks": [
+        "aerial human detection"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Wilderness aerial search candidate. Official distribution and annotation details require confirmation."
+    },
+    {
+      "dataset_id": "visdrone",
+      "name": "VisDrone",
+      "source_organization": "VisDrone team",
+      "official_url": "https://github.com/VisDrone/VisDrone-Dataset",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image",
+        "video"
+      ],
+      "annotation_types": [
+        "object boxes and tracks"
+      ],
+      "tasks": [
+        "aerial human detection"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Drone footage of everyday scenes. Group by flight; crowd and occlusion labels need mapping."
+    },
+    {
+      "dataset_id": "hit-uav",
+      "name": "HIT-UAV",
+      "source_organization": "HIT-UAV authors",
+      "official_url": "https://github.com/suojiashun/HIT-UAV-Infrared-Thermal-Dataset",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "thermal"
+      ],
+      "annotation_types": [
+        "object boxes"
+      ],
+      "tasks": [
+        "thermal human detection"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Aerial infrared object detection. Inspect thermal encoding and size of distant people."
+    },
+    {
+      "dataset_id": "flir-adas",
+      "name": "FLIR ADAS",
+      "source_organization": "Teledyne FLIR",
+      "official_url": "https://oem.flir.com/solutions/automotive/adas-dataset-form/",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image",
+        "thermal"
+      ],
+      "annotation_types": [
+        "object boxes"
+      ],
+      "tasks": [
+        "thermal human detection"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Road-level driving perspective. Visible and thermal streams exist; verify registration per release."
+    },
+    {
+      "dataset_id": "kaist",
+      "name": "KAIST Multispectral",
+      "source_organization": "KAIST RCV Lab",
+      "official_url": "https://soonminhwang.github.io/rgbt-ped-detection/",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image",
+        "thermal"
+      ],
+      "annotation_types": [
+        "pedestrian boxes"
+      ],
+      "tasks": [
+        "paired fusion"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Vehicle-mounted aligned RGB and thermal images. Day/night traffic differs from aerial disaster scenes."
+    },
+    {
+      "dataset_id": "floodnet",
+      "name": "FloodNet",
+      "source_organization": "Bina Lab",
+      "official_url": "https://github.com/BinaLab/FloodNet-Supervised_v1.0",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image"
+      ],
+      "annotation_types": [
+        "semantic masks"
+      ],
+      "tasks": [
+        "flood observation"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Post-flood UAV scenes. Geographic and event coverage limit generalization."
+    },
+    {
+      "dataset_id": "rescuenet",
+      "name": "RescueNet",
+      "source_organization": "RescueNet authors",
+      "official_url": "https://www.nature.com/articles/s41597-023-02799-4",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image"
+      ],
+      "annotation_types": [
+        "semantic masks"
+      ],
+      "tasks": [
+        "structural damage observation"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Post-disaster UAV segmentation. Building condition labels need a documented mapping."
+    },
+    {
+      "dataset_id": "xbd",
+      "name": "xBD",
+      "source_organization": "xBD authors",
+      "official_url": "https://arxiv.org/abs/1911.09296",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "image"
+      ],
+      "annotation_types": [
+        "building polygons and damage categories"
+      ],
+      "tasks": [
+        "structural damage observation"
+      ],
+      "privacy_considerations": "Review identifiable people, properties and location disclosure.",
+      "limitations": "Pre/post disaster satellite scenes. Keep matched geographic footprints together; scale differs from UAV imagery."
+    },
+    {
+      "dataset_id": "audioset",
+      "name": "AudioSet",
+      "source_organization": "Google",
+      "official_url": "https://research.google.com/audioset/",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "audio"
+      ],
+      "annotation_types": [
+        "clip event tags"
+      ],
+      "tasks": [
+        "audio event classification"
+      ],
+      "privacy_considerations": "Review identifiable voices and source permissions.",
+      "limitations": "Online video excerpts. Availability and rights vary by item; clip tags provide weak timing."
+    },
+    {
+      "dataset_id": "esc50",
+      "name": "ESC-50",
+      "source_organization": "Karol J. Piczak",
+      "official_url": "https://github.com/karolpiczak/ESC-50",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "audio"
+      ],
+      "annotation_types": [
+        "clip class and official folds"
+      ],
+      "tasks": [
+        "audio event classification"
+      ],
+      "privacy_considerations": "Review identifiable voices and source permissions.",
+      "limitations": "Environmental recordings. Small curated clips lack airborne platform noise."
+    },
+    {
+      "dataset_id": "fsd50k",
+      "name": "FSD50K",
+      "source_organization": "FSD50K authors",
+      "official_url": "https://zenodo.org/records/4060432",
+      "origin": "real",
+      "version": null,
+      "licence": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "download_status": "not_downloaded",
+      "modalities": [
+        "audio"
+      ],
+      "annotation_types": [
+        "multilabel clip tags"
+      ],
+      "tasks": [
+        "audio event classification"
+      ],
+      "privacy_considerations": "Review identifiable voices and source permissions.",
+      "limitations": "Freesound recordings. Track clip-level rights and source-recording groups."
+    },
+    {
+      "dataset_id": "smoke-detection-iot",
+      "name": "Smoke Detection IoT",
+      "source_organization": "Stefan Blattmann",
+      "official_url": "https://community.element14.com/products/arduino/arduino-projects/b/blog/posts/real-time-smoke-detection-with-ai-based-sensor-fusion",
+      "origin": "real",
+      "version": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "modalities": [
+        "environment"
+      ],
+      "annotation_types": [
+        "Binary Fire Alarm target in source project"
+      ],
+      "tasks": [
+        "environmental sensor interpretation"
+      ],
+      "privacy_considerations": "Recording times and locations may identify collection sites.",
+      "limitations": "Published experimental target; independent verification and the local label-generation procedure are unresolved. Two pairs of runs repeat 11 sensor channels and alarm labels. eCO2 is estimated.",
+      "sample_count": 62630,
+      "downloaded_bytes": 5834376,
+      "file_formats": [
+        "csv"
+      ],
+      "download_status": "available",
+      "sha256": "7bbf5deaab4c94746b344cee7bfec493f69b7d624ea63f35fabcd3c4a4e6eb7d"
+    },
+    {
+      "dataset_id": "uci-air-quality",
+      "name": "UCI Air Quality",
+      "source_organization": "Saverio De Vito, UCI Machine Learning Repository",
+      "official_url": "https://archive.ics.uci.edu/dataset/360/air+quality",
+      "origin": "real",
+      "version": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "modalities": [
+        "environment"
+      ],
+      "annotation_types": [
+        "Hourly reference-analyzer concentrations"
+      ],
+      "tasks": [
+        "stationary air-quality sensor characterization"
+      ],
+      "privacy_considerations": "Review release metadata and recording-site granularity.",
+      "limitations": "CSV and worksheet encode the same hourly timestamps at different precision. Mask -200. Resolve CC BY 4.0 and research-only statements before admission.",
+      "sample_count": 9357,
+      "downloaded_bytes": 2083262,
+      "file_formats": [
+        "csv",
+        "xlsx"
+      ],
+      "download_status": "available",
+      "sha256": null
+    },
+    {
+      "dataset_id": "usgs-water-data",
+      "name": "USGS Water Data",
+      "source_organization": "U.S. Geological Survey",
+      "official_url": "https://api.waterdata.usgs.gov/download/",
+      "origin": "real",
+      "version": null,
+      "licence_status": "unverified",
+      "privacy_status": "pending",
+      "verification": "unverified",
+      "modalities": [
+        "environment"
+      ],
+      "annotation_types": [
+        "Hydrological time series with source qualifiers"
+      ],
+      "tasks": [
+        "stationary hydrological context"
+      ],
+      "privacy_considerations": "Check station-level metadata and any partner restrictions.",
+      "limitations": "One station, overlapping summary periods of parent daily statistics. No continuous readings, sample timestamps, timezone, flood thresholds or event labels. Export provenance and governance pending.",
+      "sample_count": 36,
+      "downloaded_bytes": 12299,
+      "file_formats": [
+        "csv"
+      ],
+      "download_status": "available",
+      "sha256": "7badd4905d47410208498952be2c433a167d41c80744c39620476a8358685244"
+    }
+  ]
+}

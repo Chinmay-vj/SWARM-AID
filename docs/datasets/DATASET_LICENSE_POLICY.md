@@ -1,0 +1,7 @@
+# Dataset release and privacy review
+
+A candidate entry can contain unknowns. Before acquiring a release, verify the publisher, release identity, authoritative terms for media **and annotations**, allowed purpose, attribution, redistribution, derivative works, retention and any per-file exceptions. Store a dated copy/reference and reviewer decision under licenses/. For clip collections, record per-item terms or partition into separately governed releases. Escalate ambiguous rights to a qualified reviewer and keep the entry pending.
+
+Review identifiable people, faces, voices, addresses, number plates, precise locations and source metadata. Use only the minimum needed for the approved civilian research task. Record release scope, permitted access and redaction/exclusion decisions. Store restricted raw media outside Git, keep its access-controlled copies immutable, and derive sanitized versions with independent hashes and lineage. Private images, descriptions and filesystem paths stay out of logs and committed manifests.
+
+For collection, require a verified licence and approved privacy scope. For file validation, the registry must also mark the release verified. Inventory records remain independent of download status. Public listings and citations establish neither permission nor review. Do not redistribute source material or claim human consent based solely on availability. A rights change requires a new review and identification of affected derived assets.

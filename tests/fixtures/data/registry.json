@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "datasets": [
+    {
+      "dataset_id": "contract-fixture",
+      "name": "Hand-built contract fixture",
+      "version": "1",
+      "origin": "synthetic",
+      "modalities": [
+        "image"
+      ],
+      "privacy_considerations": "No real-world subjects.",
+      "tasks": [
+        "metadata validation"
+      ],
+      "annotation_types": [],
+      "limitations": "Single invented evidence record for validator tests only."
+    }
+  ]
+}

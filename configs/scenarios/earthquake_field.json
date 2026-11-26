@@ -1,0 +1,119 @@
+{
+  "version": "2",
+  "scenario_id": "earthquake_field",
+  "disaster": "earthquake",
+  "seed": 1001,
+  "horizon": 38,
+  "width": 11,
+  "height": 9,
+  "people": 3,
+  "hazards": 2,
+  "false_positive": 0.008,
+  "noise": 0.08,
+  "field_profile": {
+    "difficulty": "moderate",
+    "search_region": [
+      {
+        "x": 1,
+        "y": 1
+      },
+      {
+        "x": 1,
+        "y": 5
+      },
+      {
+        "x": 2,
+        "y": 5
+      },
+      {
+        "x": 3,
+        "y": 4
+      },
+      {
+        "x": 4,
+        "y": 4
+      },
+      {
+        "x": 5,
+        "y": 5
+      },
+      {
+        "x": 7,
+        "y": 6
+      }
+    ],
+    "alternate_disabled": [
+      "thermal"
+    ],
+    "windows": [
+      {
+        "start": 7,
+        "stop": 16,
+        "radius": 1,
+        "disabled": [
+          "thermal"
+        ],
+        "condition": "aftershock"
+      }
+    ]
+  },
+  "terrain": {
+    "road": [
+      {
+        "x": 2,
+        "y": 3
+      },
+      {
+        "x": 4,
+        "y": 6
+      }
+    ],
+    "building": [
+      {
+        "x": 3,
+        "y": 3
+      },
+      {
+        "x": 5,
+        "y": 6
+      }
+    ],
+    "damaged": [
+      {
+        "x": 4,
+        "y": 3
+      },
+      {
+        "x": 6,
+        "y": 6
+      }
+    ]
+  },
+  "events": [
+    {
+      "step": 6,
+      "cell": {
+        "x": 1,
+        "y": 2
+      },
+      "terrain": "damaged"
+    },
+    {
+      "step": 12,
+      "cell": {
+        "x": 2,
+        "y": 2
+      },
+      "terrain": "debris"
+    },
+    {
+      "step": 20,
+      "cell": {
+        "x": 3,
+        "y": 2
+      },
+      "terrain": "blocked"
+    }
+  ],
+  "latency": 2
+}

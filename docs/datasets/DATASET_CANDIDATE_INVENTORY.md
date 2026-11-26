@@ -1,0 +1,17 @@
+# Candidate inventory
+
+All eleven entries are candidates for manual release review. Local availability is **not downloaded** for every entry. Release identity, licence verification, privacy approval, exact file availability, bytes and checksums remain open. A publisher page or paper supports the research fit only. No media were accessed. The machine-readable inventory is [registry.json](../../configs/datasets/registry.json).
+
+| Candidate | Potential task and source annotations | Perspective, pairing and transfer limitation | Primary documentation |
+|---|---|---|---|
+| HERIDAL | Aerial human detection with annotated imagery and patches | Wilderness aerial search. Current distribution and annotation encoding require confirmation. No verified cross-modal pairing. | [Dataset authors](https://doi.org/10.1007/s11263-019-01177-1) and [published project address](https://www.mdpi.com/2072-4292/12/20/3295) |
+| VisDrone | aerial human detection; image video; object boxes and tracks | Drone footage of everyday scenes. Group by flight; crowd and occlusion labels need mapping. No verified cross-modal pairing. | [Publisher or authors](https://github.com/VisDrone/VisDrone-Dataset) |
+| HIT-UAV | thermal human detection; thermal; object boxes | Aerial infrared object detection. Inspect thermal encoding and size of distant people. No verified cross-modal pairing. | [Publisher or authors](https://github.com/suojiashun/HIT-UAV-Infrared-Thermal-Dataset) |
+| FLIR ADAS | thermal human detection; image thermal; object boxes | Road-level driving perspective. Visible and thermal streams exist; verify registration per release.  | [Publisher or authors](https://oem.flir.com/solutions/automotive/adas-dataset-form/) |
+| KAIST Multispectral | paired fusion; image thermal; pedestrian boxes | Vehicle-mounted aligned RGB and thermal images. Day/night traffic differs from aerial disaster scenes.  | [Publisher or authors](https://soonminhwang.github.io/rgbt-ped-detection/) |
+| FloodNet | flood observation; image; semantic masks | Post-flood UAV scenes. Geographic and event coverage limit generalization. No verified cross-modal pairing. | [Publisher or authors](https://github.com/BinaLab/FloodNet-Supervised_v1.0) |
+| RescueNet | structural damage observation; image; semantic masks | Post-disaster UAV segmentation. Building condition labels need a documented mapping. No verified cross-modal pairing. | [Publisher or authors](https://www.nature.com/articles/s41597-023-02799-4) |
+| xBD | structural damage observation; image; building polygons and damage categories | Pre/post disaster satellite scenes. Keep matched geographic footprints together; scale differs from UAV imagery.  | [Publisher or authors](https://arxiv.org/abs/1911.09296) |
+| AudioSet | audio event classification; audio; clip event tags | Online video excerpts. Availability and rights vary by item; clip tags provide weak timing. No verified cross-modal pairing. | [Publisher or authors](https://research.google.com/audioset/) |
+| ESC-50 | audio event classification; audio; clip class and official folds | Environmental recordings. Small curated clips lack airborne platform noise. No verified cross-modal pairing. | [Publisher or authors](https://github.com/karolpiczak/ESC-50) |
+| FSD50K | audio event classification; audio; multilabel clip tags | Freesound recordings. Track clip-level rights and source-recording groups. No verified cross-modal pairing. | [Publisher or authors](https://zenodo.org/records/4060432) |
