@@ -133,6 +133,22 @@ def validate(
     operational_files: set[str] = set()
     target_files: set[str] = set()
     lineage: dict[tuple[UUID, UUID], Evidence] = {}
+    verified_assets: dict[str, tuple[str, int, int]] = {}
+
+    def checked_asset(asset: Asset, extensions: set[str]) -> Path:
+        path = inspect_asset(root, asset, extensions, False)
+        if verify_files:
+            stat = path.stat()
+            identity = (asset.sha256, stat.st_size, stat.st_mtime_ns)
+            if verified_assets.get(str(path)) != identity:
+                inspect_asset(root, asset, extensions, True)
+                after = path.stat()
+                if (after.st_size, after.st_mtime_ns) != identity[1:]:
+                    raise ValueError("asset changed during integrity verification")
+                verified_assets[str(path)] = identity
+            elif asset.availability != "available":
+                raise ValueError("file unavailable")
+        return path
 
     def group(key: tuple[str, ...], split: str) -> None:
         if groups.setdefault(key, split) != split:
@@ -181,7 +197,7 @@ def validate(
                     for part in Path(s.asset.path).parts[:-1]
                 ):
                     raise ValueError("operational asset in a restricted label directory")
-                path = inspect_asset(root, s.asset, FORMATS[s.modality], verify_files)
+                path = checked_asset(s.asset, FORMATS[s.modality])
                 if s.modality == "environment" and s.source_rows:
                     for source_row in s.source_rows:
                         group(("sensor-row", str(path).casefold(), str(source_row)), s.split)
@@ -198,9 +214,7 @@ def validate(
                     for label in (*s.annotation.labels, *s.annotation.box_labels)
                 ):
                     raise ValueError("undefined annotation label")
-                path = inspect_asset(
-                    root, s.annotation.asset, ANNOTATIONS[s.annotation.format], verify_files
-                )
+                path = checked_asset(s.annotation.asset, ANNOTATIONS[s.annotation.format])
                 target_files.update((str(path).casefold(), s.annotation.asset.sha256))
                 if verify_files:
                     inspect_annotation(path, s.annotation, s)

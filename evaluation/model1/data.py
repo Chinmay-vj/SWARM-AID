@@ -1,6 +1,8 @@
 """Authorization-gated, task-specific Model 1 data loading."""
 
+import hashlib
 import importlib
+import json
 import random
 from collections.abc import Mapping, Sequence
 from functools import lru_cache, partial
@@ -13,6 +15,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from evaluation.data.contracts import Manifest, Registry, Sample
+from evaluation.data.preprocessing import require_training
 from evaluation.data.release_authorization import (
     AuthorizationRecord,
     require_training_authorization,
@@ -40,6 +43,7 @@ class TaskDataConfig:
         workers: int = 0,
         horizontal_flip_probability: float = 0.0,
         mask_value_to_label: Mapping[int, str] | None = None,
+        development_only: bool = False,
     ) -> None:
         if image_size < 32 or batch_size < 1 or workers < 0:
             raise ValueError("invalid image size, batch size or worker count")
@@ -53,6 +57,32 @@ class TaskDataConfig:
         self.workers = workers
         self.horizontal_flip_probability = horizontal_flip_probability
         self.mask_value_to_label = dict(mask_value_to_label or {})
+        self.development_only = development_only
+
+
+class TaskValidationSession:
+    """Reuse successful byte verification only within one unchanged local execution."""
+
+    def __init__(self) -> None:
+        self._verified: dict[str, dict[str, tuple[int, int]]] = {}
+
+    def verify(self, registry: Registry, manifests: tuple[Manifest, ...], root: Path) -> None:
+        payload = [registry.model_dump(mode="json"),
+                   [m.model_dump(mode="json") for m in manifests], str(root.resolve())]
+        key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
+        paths = {a.path for m in manifests for s in m.samples
+                 for a in (s.asset, s.annotation.asset if s.annotation else None) if a is not None}
+
+        def snapshot() -> dict[str, tuple[int, int]]:
+            return {p: ((stat := (root / p).stat()).st_size, stat.st_mtime_ns) for p in paths}
+
+        before = snapshot()
+        if self._verified.get(key) == before:
+            return
+        validate(registry, manifests, root, verify_files=True)
+        if snapshot() != before:
+            raise ValueError("source assets changed during integrity verification")
+        self._verified[key] = before
 
 
 class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
@@ -70,6 +100,7 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
         candidate_manifest_path: Path,
         authorization_records: tuple[AuthorizationRecord, ...],
         split: DatasetSplit = "train",
+        validation_session: TaskValidationSession | None = None,
     ) -> None:
         if input_manifest.role != "operational" or target_manifest.role != "training_targets":
             raise ValueError("task data requires operational inputs and a training-target manifest")
@@ -89,7 +120,15 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             training_targets_manifest=target_manifest,
             required_scope="local_training" if split == "train" else "local_evaluation",
         )
-        validate(registry, (input_manifest, target_manifest), root, verify_files=True)
+        if config.development_only and split == "test":
+            raise ValueError("reserved test data is excluded from development")
+        validate(registry, (input_manifest, target_manifest), root, verify_files=False)
+        checked: tuple[Manifest, ...] = (input_manifest, target_manifest)
+        if config.development_only:
+            checked = tuple(m.model_copy(update={"samples": tuple(
+                s for s in m.samples if s.split != "test"
+            )}) for m in checked)
+        (validation_session or TaskValidationSession()).verify(registry, checked, root)
         input_rows = {sample.sample_id: sample for sample in input_manifest.samples}
         target_rows = {sample.sample_id: sample for sample in target_manifest.samples}
         if input_rows.keys() != target_rows.keys():
@@ -101,18 +140,11 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             if target.annotation is None:
                 raise ValueError("task target annotation is missing")
         if split == "train":
-            approved = list(
-                approved_training(
-                    registry,
-                    (input_manifest,),
-                    root,
-                    task_id=task_id,
-                    candidate_manifest_paths={input_manifest.dataset_id: candidate_manifest_path},
-                    authorization_records=authorization_records,
-                    training_targets_manifest=target_manifest,
-                )
-            )
-            rows = [sample for batch in approved for sample in batch]
+            # Authorization and collection integrity were checked above. Do not
+            # repeat the same asset audit through approved_training a second time.
+            rows = [sample for sample in input_manifest.samples if sample.split == "train"]
+            for sample in rows:
+                require_training(sample.split, True, sample.seed)
         else:
             rows = [sample for sample in input_manifest.samples if sample.split == split]
         self._dataset = next(
@@ -152,6 +184,7 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
         self._sensor_available: Tensor | None = None
         self._normalized_sensor_values: Tensor | None = None
         self._sensor_targets: Tensor | None = None
+        self._segmentation_cache: Any = None
         if config.task.startswith("sensor_"):
             sensor_windows = []
             source_indices: dict[Path, Mapping[int, Mapping[str, float]]] = {}
@@ -198,6 +231,8 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
                 if self._sensor_targets is not None
                 else torch.tensor(self._class_index(annotation.labels[0]), dtype=torch.int64)
             )
+        elif self._segmentation_cache is not None:
+            x, y = self._segmentation_cache[index]
         else:
             x, y = self._load_sample(sample, target_sample)
         if (
@@ -688,15 +723,28 @@ def _mask_tensor(
     value_to_label: Mapping[int, str],
     label_indices: Mapping[str, int],
 ) -> Tensor:
+    import numpy as np
+
     with Image.open(path) as source:
-        mask = source.resize(size, Image.Resampling.NEAREST)
-        values = torch.tensor(list(mask.getdata()), dtype=torch.int64).reshape(size[1], size[0])
-    output = torch.full_like(values, fill_value=255)
+        raw = np.asarray(source)
+        if raw.ndim != 2 or raw.dtype.kind not in "ui":
+            raise ValueError("mask must contain single-channel integer class IDs")
+        # Check the full source domain, including pixels downsampling might omit.
+        present = np.unique(raw)
+        if not set(present.tolist()).issubset(value_to_label):
+            raise ValueError("mask contains pixel values without source-verified class mappings")
+        values = np.asarray(source.resize(size, Image.Resampling.NEAREST))
+    if not value_to_label or min(value_to_label) < 0 or max(value_to_label) > 65535:
+        raise ValueError("invalid mask taxonomy")
+    lookup = np.full(max(value_to_label) + 1, -1, dtype=np.int64)
     for value, label in value_to_label.items():
-        output[values == value] = label_indices[label]
-    if (output == 255).any():
+        lookup[value] = label_indices[label]
+    if values.size == 0 or int(values.max()) >= len(lookup):
         raise ValueError("mask contains pixel values without source-verified class mappings")
-    return output
+    output = lookup[values]
+    if (output < 0).any():
+        raise ValueError("mask contains pixel values without source-verified class mappings")
+    return torch.from_numpy(output)
 
 
 def _sensor_window(path: Path, sample: Sample) -> tuple[Tensor, Tensor]:

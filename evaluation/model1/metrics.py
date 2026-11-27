@@ -159,10 +159,12 @@ def detection_metrics(
                 false_positive.append(1.0)
                 continue
             overlaps = _box_iou(box.unsqueeze(0), expected).squeeze(0)
-            best_index = int(overlaps.argmax())
+            available_overlaps = overlaps.masked_fill(
+                matched[image_index].to(overlaps.device), -1.0
+            )
+            best_index = int(available_overlaps.argmax())
             is_match = (
-                float(overlaps[best_index]) >= iou_threshold
-                and not matched[image_index][best_index]
+                float(available_overlaps[best_index]) >= iou_threshold
             )
             true_positive.append(float(is_match))
             false_positive.append(float(not is_match))
