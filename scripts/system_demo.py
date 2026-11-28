@@ -163,12 +163,12 @@ class Demo:
         me = self.client("coordinator").get("/api/v1/auth/me").json()
         self.step("authorized_login", me["global_role"] == "coordinator", role=me["global_role"])
 
-        # Main mission: six-agent flood, seed 42, long enough for review.
+        # Main mission: six-agent flood, seed 12988, long enough for review.
         mid = self.create(
             f"Phase 9 demo flood {stamp}",
             scenario_id="flood_basic",
             agents=6,
-            seed=42,
+            seed=12988,
             horizon=5000,
         )
         m = self.status(mid)
@@ -445,7 +445,7 @@ class Demo:
             f"Phase 9 demo outage {stamp}",
             scenario_id="flood_server_unavailable",
             agents=6,
-            seed=42,
+            seed=12988,
             outage_steps=[12, 13, 14, 15],
         )
         outage_start = c.post(f"/api/v1/missions/{outage}/start")
@@ -538,7 +538,7 @@ class Demo:
             f"Phase 9 demo shutdown {stamp}",
             scenario_id="flood_basic",
             agents=3,
-            seed=43,
+            seed=12989,
             horizon=5000,
         )
         c.post(f"/api/v1/missions/{running}/start")

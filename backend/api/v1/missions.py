@@ -237,6 +237,7 @@ def snapshots(
     mission_id: UUID, principal: PrincipalDep, services: ContainerDep
 ) -> list[SnapshotOut]:
     from sqlalchemy import select
+    from sqlalchemy.orm import defer
 
     from backend.core.permissions import Permission
     from backend.database import models as m
@@ -246,6 +247,8 @@ def snapshots(
         mission_for(session, principal, mission_id, Permission.METRICS_READ)
         rows = session.scalars(
             select(m.MissionSnapshot)
+            # The listing returns metadata only; payloads can be megabytes each.
+            .options(defer(m.MissionSnapshot.payload, raiseload=True))
             .where(m.MissionSnapshot.mission_id == mission_id)
             .order_by(m.MissionSnapshot.sim_time_ms.desc(), m.MissionSnapshot.created_at.desc())
             .limit(50)

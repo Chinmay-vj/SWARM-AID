@@ -4,6 +4,7 @@ import io
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
 from uuid import uuid4
 
 import pytest
@@ -17,7 +18,7 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader, TensorDataset
 
 from agents.shared.domain import Cell, Evidence, SensorFrame
-from evaluation.data.contracts import Manifest, Registry
+from evaluation.data.contracts import Manifest, Registry, Sample
 from evaluation.data.model1_prep import CandidateManifest
 from evaluation.data.release_authorization import AuthorizationRecord, manifest_sha256
 from evaluation.model1.checkpoints import restore_checkpoint, save_checkpoint
@@ -215,7 +216,7 @@ def test_uci_regression_huber_forward_backward_is_finite() -> None:
         targets,
     )
     assert torch.isfinite(loss)
-    loss.backward()
+    torch.autograd.backward(loss)
     assert all(
         parameter.grad is None or torch.isfinite(parameter.grad).all()
         for parameter in model.parameters()
@@ -262,7 +263,7 @@ def test_uci_baselines_use_only_the_model_valid_validation_rows() -> None:
             return self.previous[index]
 
     metrics = baseline_metrics(
-        ValidationDataset(),
+        cast(AuthorizedTaskDataset, ValidationDataset()),
         torch.tensor([True, False, True]),
         train_mean=2.0,
     )
@@ -313,9 +314,8 @@ def test_uci_sensor_windows_parse_source_once_and_preserve_missing_values(tmp_pa
         "Date;Time;T;RH\n01/01/2004;00.00.00;10;50\n01/01/2004;01.00.00;-200;60\n",
         encoding="utf-8",
     )
-    sample = SimpleNamespace(
-        source_rows=(2, 3),
-        sensor_feature_names=("T", "RH"),
+    sample = cast(
+        Sample, SimpleNamespace(source_rows=(2, 3), sensor_feature_names=("T", "RH"))
     )
     _cached_sensor_source_index.cache_clear()
     try:
@@ -332,10 +332,10 @@ def test_uci_sensor_windows_parse_source_once_and_preserve_missing_values(tmp_pa
 def test_cached_sensor_normalization_is_applied_once() -> None:
     dataset = object.__new__(AuthorizedTaskDataset)
     dataset._config = TaskDataConfig("sensor_regression")
-    dataset.rows = (SimpleNamespace(sample_id="window-1", sensor_feature_names=("T", "RH")),)
-    dataset._targets = {
-        "window-1": SimpleNamespace(annotation=SimpleNamespace(numeric_targets=(4.0,)))
-    }
+    row = SimpleNamespace(sample_id="window-1", sensor_feature_names=("T", "RH"))
+    target = SimpleNamespace(annotation=SimpleNamespace(numeric_targets=(4.0,)))
+    dataset.rows = (cast(Sample, row),)
+    dataset._targets = {"window-1": cast(Sample, target)}
     dataset._sensor_values = torch.tensor([[[12.0, 40.0], [8.0, 60.0]]])
     dataset._sensor_available = torch.tensor([[[True, True], [False, True]]])
     dataset._normalized_sensor_values = None

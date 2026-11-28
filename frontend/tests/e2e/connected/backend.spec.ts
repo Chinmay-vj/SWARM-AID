@@ -22,7 +22,7 @@ async function signIn(page: Page, username: string) {
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Missions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Missions", exact: true })).toBeVisible();
   await expect(page.getByText("SYNTHETIC DEMO MODE.")).toHaveCount(0);
 }
 
@@ -41,7 +41,7 @@ test("authenticate, create a six-agent flood mission and start it", async ({ pag
   await dialog.getByLabel(/^Name/).fill(`E2E flood ${Date.now()}`);
   await dialog.getByLabel("Scenario").selectOption("flood_basic");
   await dialog.getByLabel(/Agents/).fill("6");
-  await dialog.getByLabel("Seed").fill("42");
+  await dialog.getByLabel("Seed").fill("12982");
   await dialog.getByLabel(/Horizon/).fill("400");
   await dialog.getByLabel("Model 2 mode").selectOption("fusion");
   await dialog.getByRole("button", { name: "Create mission" }).click();
@@ -249,7 +249,7 @@ test("communication degradation and mission switching", async ({ page, request }
     headers: auth(coord),
     data: {
       name: `E2E outage ${Date.now()}`,
-      config: { scenario_id: "flood_outage", agents: 6, seed: 42, horizon: 120 },
+      config: { scenario_id: "flood_outage", agents: 6, seed: 12983, horizon: 120 },
     },
   });
   expect(created.status()).toBe(201);
@@ -282,7 +282,9 @@ test("stop the simulation and retrieve persisted information", async ({ page }) 
   await signIn(page, "coordinator");
   await page.goto(missionUrl);
   const stop = page.getByRole("button", { name: "Stop", exact: true });
-  if (await stop.isEnabled().catch(() => false)) {
+  // The mission can finish on its own, and then there is no Stop button to wait for.
+  await expect(status(page, "Status")).toContainText(/running|paused|stopped|completed/);
+  if ((await stop.isVisible()) && (await stop.isEnabled())) {
     await stop.click();
     await page
       .getByRole("dialog")

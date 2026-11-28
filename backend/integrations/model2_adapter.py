@@ -130,6 +130,9 @@ class Model2Sync:
 
     # ----- main entry ----------------------------------------------------------------------
     def sync(self, session: Session) -> None:
+        # The session keeps unmodified rows only while something refers to them. Holding the
+        # agents for this unit of work stops one query per report that mentions an agent.
+        held = session.scalars(select(m.Agent).where(m.Agent.mission_id == self.mission_id)).all()
         refs = self._event_refs()
         self._sync_tasks(session)
         self._sync_inbox(session, refs)
@@ -139,6 +142,7 @@ class Model2Sync:
         self._sync_alerts(session)
         self._sync_runtime(session)
         self.ticks += 1
+        del held
 
     def sync_model2_outputs(self, session: Session) -> None:
         """Persist only what an out-of-band report can change: incidents and transitions."""
@@ -692,6 +696,13 @@ class Model2Sync:
         if fixture is None:
             return
         for task in fixture.tasks.values():
+            status = reported.get(task.task_id)
+            # Only this adapter writes task rows and histories only grow, so a stored task with
+            # no new history or report needs no query. Both caches roll back with a failed tick.
+            if len(task.history) == self.task_history.get(task.task_id) and (
+                not status or self.task_reported.get(task.task_id) == status
+            ):
+                continue
             tid = self.scope(task.task_id)
             row = session.get(m.Task, tid)
             last = task.history[-1]
@@ -727,7 +738,6 @@ class Model2Sync:
                 )
             self.task_history[task.task_id] = len(task.history)
             row.coordinator_state, row.updated_ms = last.state, last.time_ms
-            status = reported.get(task.task_id)
             if status and self.task_reported.get(task.task_id) != status:
                 self.task_reported[task.task_id] = status
                 row.reported_status, row.reported_ms = status, self.ctx.now_ms

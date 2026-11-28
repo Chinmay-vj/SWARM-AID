@@ -1,9 +1,12 @@
-"""Backend fixtures. Every test gets a fresh SQLite file built by the real Alembic migration."""
+"""Backend fixtures. Every test gets a fresh SQLite file built by the real Alembic migration
+(or, opt-in, an emptied PostgreSQL database)."""
 
+import os
 import shutil
 import tempfile
 import time
 from collections.abc import Callable, Iterator
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -55,10 +58,45 @@ def template_db(sqlite_dir: Path) -> Path:
     return path
 
 
+# Opt-in: run the backend API tests against a disposable PostgreSQL database instead of SQLite.
+# Both variables are required; every application table is emptied before each test.
+POSTGRES_BACKEND = (
+    os.environ.get("SWARM_TEST_POSTGRES_URL")
+    if os.environ.get("SWARM_TEST_BACKEND_ON_POSTGRES") == "1"
+    else None
+)
+
+
+@lru_cache(maxsize=1)
+def _migrated_postgres(url: str) -> str:
+    migrate(url)
+    return url
+
+
+def reset_postgres(url: str) -> None:
+    from sqlalchemy import create_engine, text
+
+    engine = create_engine(_migrated_postgres(url))
+    with engine.begin() as connection:
+        connection.execute(text("SET LOCAL lock_timeout = '20s'"))
+        tables = [
+            row[0]
+            for row in connection.execute(
+                text(
+                    "SELECT tablename FROM pg_tables WHERE schemaname = 'public' "
+                    "AND tablename NOT IN ('alembic_version', 'spatial_ref_sys')"
+                )
+            )
+        ]
+        names = ", ".join(f'"{table}"' for table in tables)
+        connection.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+    engine.dispose()
+
+
 def make_settings(db_path: Path, tmp_path: Path, **overrides: Any) -> BackendSettings:
     values: dict[str, Any] = {
         "environment": "testing",
-        "database_url": f"sqlite:///{db_path.as_posix()}",
+        "database_url": POSTGRES_BACKEND or f"sqlite:///{db_path.as_posix()}",
         "jwt_secret": SECRET,
         "simulation_tick_delay_ms": 0,
         "evidence_dir": tmp_path / "evidence",
@@ -73,6 +111,8 @@ def make_settings(db_path: Path, tmp_path: Path, **overrides: Any) -> BackendSet
 
 @pytest.fixture
 def db_path(template_db: Path, sqlite_dir: Path) -> Iterator[Path]:
+    if POSTGRES_BACKEND:
+        reset_postgres(POSTGRES_BACKEND)
     target = sqlite_dir / f"{uuid4().hex}.db"
     shutil.copyfile(template_db, target)
     yield target

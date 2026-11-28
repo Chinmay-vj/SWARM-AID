@@ -23,7 +23,7 @@ async function signIn(page: Page, username: string) {
   await page.getByLabel("Username").fill(username);
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Missions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Missions", exact: true })).toBeVisible();
 }
 
 async function mission(request: APIRequestContext, coord: string, name: string, config: object) {
@@ -55,7 +55,7 @@ test("Model 2 unavailability and recovery from a scheduled command outage are sh
   const id = await mission(request, coord, "E2E Model 2 outage", {
     scenario_id: "flood_server_unavailable",
     agents: 6,
-    seed: 42,
+    seed: 12984,
     outage_steps: [12, 13, 14, 15],
   });
   expect((await request.post(`/api/v1/missions/${id}/start`, { headers: auth(coord) })).status()).toBe(200);
@@ -80,7 +80,7 @@ test("contradicting agent reports appear to operators as conflicting evidence", 
   const id = await mission(request, coord, "E2E conflicting evidence", {
     scenario_id: "flood_basic",
     agents: 6,
-    seed: 42,
+    seed: 12985,
     horizon: 2000,
   });
   expect((await request.post(`/api/v1/missions/${id}/start`, { headers: auth(coord) })).status()).toBe(200);

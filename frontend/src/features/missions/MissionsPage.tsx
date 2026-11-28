@@ -16,6 +16,7 @@ import { AlertBox, EmptyState, QueryView } from "../../components/ui/states";
 import { keys, useMode, useProvider, useProviderQuery, useMissionMutation } from "../../hooks/data";
 import { formatSimTime, formatWallTime, humanize } from "../../lib/format";
 import { canCreateMissions } from "../../lib/permissions";
+import { developmentSeedError } from "../../lib/seeds";
 import { asApiError } from "../../services/api/errors";
 import { usePreferences } from "../../stores/preferences";
 import { useSession } from "../../stores/session";
@@ -151,7 +152,7 @@ function CreateMissionDialog({
   const [description, setDescription] = useState("");
   const [scenario, setScenario] = useState("flood_basic");
   const [agents, setAgents] = useState("6");
-  const [seed, setSeed] = useState("42");
+  const [seed, setSeed] = useState("");
   const [horizon, setHorizon] = useState("");
   const [coordination, setCoordination] = useState<MissionConfig["coordination"]>("shared_information");
   const [command, setCommand] = useState<MissionConfig["command_mode"]>("fusion");
@@ -165,6 +166,8 @@ function CreateMissionDialog({
 
   const submit = () => {
     setError(null);
+    const seedError = developmentSeedError(seed);
+    if (seedError) return setError(seedError);
     const config = {
       scenario_id: scenario,
       agents: Number(agents),
@@ -228,8 +231,6 @@ function CreateMissionDialog({
             value={scenario}
             onChange={(v) => {
               setScenario(v);
-              const s = list.find((x) => x.scenario_id === v);
-              if (s) setSeed(String(s.default_seed));
             }}
             options={list.map((s) => ({
               value: s.scenario_id,
@@ -245,7 +246,15 @@ function CreateMissionDialog({
       </QueryView>
       <div className="grid cols-3">
         <TextField label="Agents (1–20)" type="number" value={agents} onChange={setAgents} min={1} max={20} />
-        <TextField label="Seed" type="number" value={seed} onChange={setSeed} min={0} />
+        <TextField
+          label="Seed"
+          type="number"
+          value={seed}
+          onChange={setSeed}
+          min={12000}
+          max={12999}
+          help="Required: a development seed, 12000–12999"
+        />
         <TextField
           label="Horizon (ticks)"
           type="number"

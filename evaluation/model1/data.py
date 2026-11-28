@@ -66,7 +66,9 @@ class TaskValidationSession:
     def __init__(self) -> None:
         self._verified: dict[str, dict[str, tuple[int, int]]] = {}
 
-    def verify(self, registry: Registry, manifests: tuple[Manifest, ...], root: Path) -> None:
+    def verify(self, registry: Registry, manifests: tuple[Manifest, ...], root: Path,
+               *, project_authorization: AuthorizationRecord | None = None,
+               authorized_manifests: tuple[Manifest, ...] = ()) -> None:
         payload = [registry.model_dump(mode="json"),
                    [m.model_dump(mode="json") for m in manifests], str(root.resolve())]
         key = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()
@@ -79,7 +81,9 @@ class TaskValidationSession:
         before = snapshot()
         if self._verified.get(key) == before:
             return
-        validate(registry, manifests, root, verify_files=True)
+        validate(registry, manifests, root, verify_files=True,
+                 project_authorization=project_authorization,
+                 authorized_manifests=authorized_manifests)
         if snapshot() != before:
             raise ValueError("source assets changed during integrity verification")
         self._verified[key] = before
@@ -128,7 +132,10 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             checked = tuple(m.model_copy(update={"samples": tuple(
                 s for s in m.samples if s.split != "test"
             )}) for m in checked)
-        (validation_session or TaskValidationSession()).verify(registry, checked, root)
+        (validation_session or TaskValidationSession()).verify(
+            registry, checked, root,
+            project_authorization=auth if auth.wisard_project_permission is not None else None,
+            authorized_manifests=(input_manifest, target_manifest))
         input_rows = {sample.sample_id: sample for sample in input_manifest.samples}
         target_rows = {sample.sample_id: sample for sample in target_manifest.samples}
         if input_rows.keys() != target_rows.keys():
@@ -185,6 +192,7 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
         self._normalized_sensor_values: Tensor | None = None
         self._sensor_targets: Tensor | None = None
         self._segmentation_cache: Any = None
+        self._detection_cache: Any = None
         if config.task.startswith("sensor_"):
             sensor_windows = []
             source_indices: dict[Path, Mapping[int, Mapping[str, float]]] = {}
@@ -233,6 +241,8 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             )
         elif self._segmentation_cache is not None:
             x, y = self._segmentation_cache[index]
+        elif self._detection_cache is not None:
+            x, y = self._detection_cache[index]
         else:
             x, y = self._load_sample(sample, target_sample)
         if (
@@ -301,11 +311,12 @@ class AuthorizedTaskDataset(Dataset[tuple[Any, Any]]):
             raise ValueError("task target annotation is missing")
         if self._config.task in {
             "image_classification",
-            "object_detection",
             "semantic_segmentation",
         }:
             if sample.modality != "image":
                 raise ValueError("RGB task requires image input")
+        elif self._config.task == "object_detection" and sample.modality not in {"image", "thermal"}:
+            raise ValueError("detection requires RGB or display thermal imagery")
         elif self._config.task == "thermal_classification" and sample.modality != "thermal":
             raise ValueError("thermal classification requires thermal input")
         elif self._config.task == "audio_classification" and sample.modality != "audio":

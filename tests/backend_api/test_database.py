@@ -10,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 from backend_support import ROOT, make_settings
 from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError, ProgrammingError
 
 from backend.core.config import BackendSettings
 from backend.core.errors import Conflict
@@ -180,8 +180,10 @@ def test_audit_log_is_append_only(db: Database) -> None:
             outcome="success",
         )
         session.add(entry)
+    # The trigger's refusal surfaces as a different driver error on each database.
+    refused = ProgrammingError if db.engine.dialect.name == "postgresql" else IntegrityError
     for statement in ("UPDATE audit_logs SET action = 'tampered'", "DELETE FROM audit_logs"):
-        with pytest.raises(IntegrityError, match="append-only"), db.engine.begin() as connection:
+        with pytest.raises(refused, match="append-only"), db.engine.begin() as connection:
             connection.execute(text(statement))
     with db.read() as session:
         assert session.get(m.AuditLog, entry.id) is not None

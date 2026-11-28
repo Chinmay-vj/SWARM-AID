@@ -136,7 +136,7 @@ def main(argv: list[str] | None = None) -> int:
     run = commands.add_parser("run", help="headless integrated mission")
     run.add_argument("--scenario", default="flood_basic")
     run.add_argument("--agents", type=int, default=6)
-    run.add_argument("--seed", type=int, default=42)
+    run.add_argument("--seed", type=int, required=True, help="development seeds: 12000-12999")
     run.add_argument("--horizon", type=int)
     run.add_argument("--coordination", choices=get_args(PolicyName), default="shared_information")
     run.add_argument("--command-mode", choices=["direct", "rules", "fusion"], default="fusion")

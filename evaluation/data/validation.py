@@ -12,6 +12,7 @@ from xml.etree import ElementTree
 
 from agents.shared.domain import Evidence
 from evaluation.data.contracts import Annotation, Asset, Manifest, Registry, Sample
+from evaluation.data.release_authorization import AuthorizationRecord, manifest_sha256
 
 IMAGE = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
 FORMATS = {
@@ -122,10 +123,24 @@ def inspect_media(path: Path, sample: Sample) -> None:
 
 
 def validate(
-    registry: Registry, manifests: Iterable[Manifest], root: Path, *, verify_files: bool = False
+    registry: Registry, manifests: Iterable[Manifest], root: Path, *, verify_files: bool = False,
+    project_authorization: AuthorizationRecord | None = None,
+    authorized_manifests: tuple[Manifest, ...] = (),
 ) -> dict[str, int]:
     """Pass every partition together. Release mode requires reviewed registry and local bytes."""
     entries = {(d.dataset_id, d.version): d for d in registry.datasets}
+    permitted: dict[str, Manifest] = {}
+    if project_authorization is not None:
+        auth = AuthorizationRecord.model_validate(project_authorization.model_dump())
+        if auth.dataset_id != "wisard" or auth.wisard_project_permission is None or auth.decision != "APPROVE":
+            raise ValueError("invalid WiSARD project permission")
+        for full in authorized_manifests:
+            expected = (auth.training_manifest_sha256 if full.role == "operational"
+                        else auth.training_targets_manifest_sha256)
+            if (full.dataset_id != auth.dataset_id or full.dataset_version != auth.dataset_version
+                    or manifest_sha256(full) != expected):
+                raise ValueError("project permission manifest checksum mismatch")
+            permitted[full.role] = full
     ids: set[tuple[str, str, str, str]] = set()
     groups: dict[tuple[str, ...], str] = {}
     pairs: dict[str, dict[str, set[str]]] = defaultdict(lambda: defaultdict(set))
@@ -138,6 +153,8 @@ def validate(
     def checked_asset(asset: Asset, extensions: set[str]) -> Path:
         path = inspect_asset(root, asset, extensions, False)
         if verify_files:
+            if not path.is_file():
+                raise ValueError("file unavailable")
             stat = path.stat()
             identity = (asset.sha256, stat.st_size, stat.st_mtime_ns)
             if verified_assets.get(str(path)) != identity:
@@ -158,8 +175,14 @@ def validate(
         dataset = entries.get((manifest.dataset_id, manifest.dataset_version))
         if dataset is None or dataset.origin != manifest.origin:
             raise ValueError("unknown dataset version or origin mismatch")
+        bound = permitted.get(manifest.role)
+        bound_samples = {s.sample_id: s for s in bound.samples} if bound else {}
+        project_permitted = bound is not None and (
+            manifest.dataset_id == bound.dataset_id and manifest.dataset_version == bound.dataset_version
+            and all(bound_samples.get(s.sample_id) == s
+                    for s in manifest.samples))
         if verify_files and (
-            dataset.licence_status != "verified"
+            (dataset.licence_status != "verified" and not project_permitted)
             or dataset.privacy_status != "approved"
             or dataset.verification != "verified"
         ):

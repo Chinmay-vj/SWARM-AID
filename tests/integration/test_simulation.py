@@ -157,7 +157,7 @@ def test_cli_releases_viewer_on_exception(monkeypatch: pytest.MonkeyPatch) -> No
         closed.append(True)
 
     monkeypatch.setattr(Renderer, "close", close)
-    monkeypatch.setattr(sys, "argv", ["simulation", "--render"])
+    monkeypatch.setattr(sys, "argv", ["simulation", "--render", "--seed", "12900"])
     with pytest.raises(RuntimeError, match="fixture draw failure"):
         main()
     assert closed == [True]

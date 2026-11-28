@@ -150,7 +150,7 @@ class Demo:
                 "config": {
                     "scenario_id": "flood_basic",
                     "agents": 6,
-                    "seed": 42,
+                    "seed": 12988,
                     "horizon": 60,
                     "outage_steps": [25, 26, 27, 28],
                 },

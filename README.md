@@ -7,9 +7,9 @@ Phase 2 adds a CPU-only symbolic disaster simulator, seven JSON scenarios, a Pet
 From the project root after installing the simulator, run:
 
 ```powershell
-.\.venv\Scripts\python -m simulation --communication --scenario flood_basic --agents 6 --seed 42 --headless
-.\.venv\Scripts\python -m simulation --communication --scenario flood_network_delay --agents 6 --seed 42 --headless
-.\.venv\Scripts\python -m simulation --communication --scenario flood_server_unavailable --agents 6 --seed 42 --headless --output runs
+.\.venv\Scripts\python -m simulation --communication --scenario flood_basic --agents 6 --seed 12900 --headless
+.\.venv\Scripts\python -m simulation --communication --scenario flood_network_delay --agents 6 --seed 12900 --headless
+.\.venv\Scripts\python -m simulation --communication --scenario flood_server_unavailable --agents 6 --seed 12900 --headless --output runs
 ```
 
 The switch selects Model 1 and injects a deterministic in-process transport. Each exported experiment has a simulation JSON/CSV pair, communication metrics JSON and a communication event JSONL sharing its run ID. Mock command and human endpoints retain received envelopes. See the [implementation guide](docs/communication/COMMUNICATION_IMPLEMENTATION.md) and [Phase 4 completion report](docs/PHASE_4_COMPLETION_REPORT.md).
@@ -19,8 +19,8 @@ The switch selects Model 1 and injects a deterministic in-process transport. Eac
 Select the independent CPU mock agents explicitly. From the repository root, after installing the simulation extra:
 
 ```powershell
-.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 1 --seed 42 --policy model1 --headless
-.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 6 --seed 42 --policy model1 --headless --agent-config configs/model1.json
+.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 1 --seed 12900 --policy model1 --headless
+.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 6 --seed 12900 --policy model1 --headless --agent-config configs/model1.json
 ```
 
 Each run prints the latest decision per agent and the episode metrics. The default configuration authorizes stationary observations and reports. The simulator retains the Phase 2 policies and their existing defaults.
@@ -35,7 +35,7 @@ From the repository root with Python 3.12 installed, run:
 ```powershell
 py -3.12 -m venv .venv
 .\.venv\Scripts\python -m pip install -e ".[dev,simulation]"
-.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 6 --seed 42 --headless --output runs
+.\.venv\Scripts\python -m simulation --scenario flood_basic --agents 6 --seed 12900 --headless --output runs
 .\.venv\Scripts\python -m simulation --scenario wildfire_basic --render
 .\.venv\Scripts\python -m simulation --scenario earthquake_basic --policy random
 .\.venv\Scripts\python -m pytest -q
@@ -80,9 +80,9 @@ Start with the system architecture for component ownership, then follow a report
 From the repository root, use the Python environment installed with the dev and simulation extras. The examples below use the project virtual environment.
 
 ```powershell
-.\.venv\Scripts\python.exe -m simulation --scenario flood_basic --agents 6 --seed 42 --headless --coordination independent
-.\.venv\Scripts\python.exe -m simulation --scenario flood_basic --agents 6 --seed 42 --headless --coordination fixed_sector
-.\.venv\Scripts\python.exe -m simulation --scenario flood_basic --agents 6 --seed 42 --headless --coordination shared_information
+.\.venv\Scripts\python.exe -m simulation --scenario flood_basic --agents 6 --seed 12900 --headless --coordination independent
+.\.venv\Scripts\python.exe -m simulation --scenario flood_basic --agents 6 --seed 12900 --headless --coordination fixed_sector
+.\.venv\Scripts\python.exe -m simulation --scenario flood_basic --agents 6 --seed 12900 --headless --coordination shared_information
 .\.venv\Scripts\python.exe -m evaluation.experiment_runner --config configs/experiments/phase5_baselines.json
 .\.venv\Scripts\python.exe -m evaluation.experiment_runner --config configs/experiments/phase5_faults.json
 ```
@@ -94,9 +94,9 @@ The comparison runner writes one JSON per episode and CSV and JSON summaries und
 From the repository root in PowerShell with the dev and simulation extras installed:
 
 ```powershell
-.\.venv\Scripts\python.exe -m simulation --command-agent --scenario flood_basic --agents 6 --seed 42 --headless --output runs/command
-.\.venv\Scripts\python.exe -m simulation --command-agent --coordination shared_information --scenario flood_multiple --agents 6 --seed 42 --headless --output runs/multiple
-.\.venv\Scripts\python.exe -m simulation --command-agent --coordination shared_information --scenario flood_server_unavailable --agents 6 --seed 42 --headless --output runs/outage
+.\.venv\Scripts\python.exe -m simulation --command-agent --scenario flood_basic --agents 6 --seed 12900 --headless --output runs/command
+.\.venv\Scripts\python.exe -m simulation --command-agent --coordination shared_information --scenario flood_multiple --agents 6 --seed 12900 --headless --output runs/multiple
+.\.venv\Scripts\python.exe -m simulation --command-agent --coordination shared_information --scenario flood_server_unavailable --agents 6 --seed 12900 --headless --output runs/outage
 .\.venv\Scripts\python.exe -m evaluation.command_agent_experiments --config configs/experiments/phase6_baselines.json
 ```
 
@@ -138,7 +138,7 @@ Phase 9 integrates and verifies the whole stack (simulator, independent Model 1 
 powershell -ExecutionPolicy Bypass -File scripts\start_system.ps1      # validate, migrate, start backend + dashboard
 powershell -ExecutionPolicy Bypass -File scripts\status_system.ps1     # health, database, active missions
 powershell -ExecutionPolicy Bypass -File scripts\stop_system.ps1       # graceful; stops only what start_system started
-powershell -ExecutionPolicy Bypass -File scripts\start_system.ps1 -Headless -Scenario flood_basic -Agents 6 -Seed 42
+powershell -ExecutionPolicy Bypass -File scripts\start_system.ps1 -Headless -Scenario flood_basic -Agents 6 -Seed 12900
 
 .\.venv\Scripts\python.exe -m orchestration check                       # configuration validation
 .\.venv\Scripts\python.exe -m orchestration matrix --config configs\experiments\phase9_smoke.json

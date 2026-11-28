@@ -25,7 +25,7 @@ test("dashboard behaviour with 3, 6, 10 and 20 agents", async ({ page, request }
   await page.getByLabel("Username").fill("coordinator");
   await page.getByLabel("Password").fill(PASSWORD);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.getByRole("heading", { name: "Missions" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Missions", exact: true })).toBeVisible();
   await page.evaluate(() => {
     (window as unknown as { __longTasks: number[] }).__longTasks = [];
     new PerformanceObserver((list) =>
@@ -40,7 +40,7 @@ test("dashboard behaviour with 3, 6, 10 and 20 agents", async ({ page, request }
       headers: h,
       data: {
         name: `perf ${agents} agents`,
-        config: { scenario_id: "flood_basic", agents, seed: 42, horizon: 150 },
+        config: { scenario_id: "flood_basic", agents, seed: 12986, horizon: 150 },
       },
     });
     expect(created.status()).toBe(201);

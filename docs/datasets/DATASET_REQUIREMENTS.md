@@ -29,3 +29,41 @@ A future source adapter implements `SourceAdapter.ingest` over immutable raw fil
 ### Future model artifact record
 
 Use a small release JSON document containing provider_id (stable consumer/task name), provider_version, artifact_id (immutable identifier), artifact_sha256, training dataset IDs and versions, manifest versions **and byte digests**, input/output schema versions, code commit, training config digest and reproducible config reference, seeds, evaluation run ID, held-out split digest and metrics with denominators. Record Python range, dependencies, supported modalities, missing-input behavior and CPU memory/runtime measurements. Check digest, schema compatibility and CPU load before enabling an adapter. Continue using existing deterministic providers until a future provider passes independent validation. No trained artifact is registered in 10A.
+
+### WiSARD detection preparation
+
+`python -m evaluation.model1.prepare_wisard` prepares separate RGB and thermal
+candidate releases using the existing cleaned records and location partitions.
+YOLO class 0 is human; normalized center/width/height are converted to source-pixel
+`Annotation.boxes` (x,y,width,height), then the authorized detection loader scales
+to model xyxy and maps human to foreground index 1. Index 0 remains background.
+Thermal detection accepts three-channel display imagery, without temperature
+interpretation or cross-modal pairing. Source orientation must be 1 for this
+conversion; other orientations require review, not an inferred box transform.
+
+`python -m evaluation.model1.wisard --release <release-directory>` checks existing
+release authorization without decoding images. Execution additionally requires
+`--execute` and a separately recorded, digest-bound owner training-start decision.
+Preparation approval is not release or training-start authorization. Development
+loading/caching excludes reserved test images. See the WiSARD entry in
+[Phase 11 progress](../PHASE_11_PROGRESS.md) for evidence, limitations and commands.
+
+### Owner-confirmed external WiSARD permission
+
+Authorization records optionally carry `wisard_project_permission`: SWARM-AID
+project, matching owner identity, non-sensitive external correspondence reference,
+confirmation timestamp, confirmed imagery/annotation coverage and local
+non-commercial training/evaluation scope. Original correspondence stays external;
+no repository email archive is required. This is project-specific permission, not
+verification of the general dataset licence. Other datasets cannot use this field.
+Cloud and redistribution remain unauthorized. Existing governance/privacy/review,
+source verification, candidate/input/target checksums and reserved-test protections
+remain mandatory. File validation accepts only samples from the checksum-bound
+full manifests when using this permission. The field is an additive optional
+extension of authorization 1.1; older readers must be upgraded before use.
+
+`python -m evaluation.model1.authorize_wisard` records the explicitly approved
+owner decision against the two prepared releases and existing permission/privacy/
+sampled-review records. It does not archive correspondence, alter input or target
+manifests, or issue a training-start approval. Do not rerun it to infer a new owner
+decision; it is the recorder for the approval documented in this session.

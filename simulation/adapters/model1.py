@@ -5,6 +5,7 @@ from agents.command_agent.agent import CommandAgent
 from agents.command_agent.agent import Settings as CommandSettings
 from agents.drone_agent.agent import DroneAgent
 from agents.drone_agent.components import Settings
+from agents.drone_agent.evidence import EvidenceLedger, RecordingPerception
 from agents.shared.coordination import MissionContext
 from agents.shared.domain import Cell, DroneState
 from communication.messages import (
@@ -37,6 +38,7 @@ class Fleet:
         coordination: PolicyName | None = None,
         policy: CoordinationPolicy | None = None,
         perception_factory: Callable[[str], PerceptionProvider] | None = None,
+        record_evidence: bool = False,
     ):
         self.network = (
             SimulationNetwork(e, share_peers=coordination not in ("fixed_sector", "independent"))
@@ -44,6 +46,9 @@ class Fleet:
             else None
         )
         self.command = CommandAgent(e.mission_id, frozenset(e.drones), command) if command else None
+        # Caller-supplied policies stay disabled on operator-facing fleets (those with a command
+        # agent) until checkpoint compatibility is established. Only verification code sets this.
+        self.allow_external_policy = False
         self.command_cursor = 0
         self.command_revision = 0
         settings = Settings.model_validate_json(
@@ -87,11 +92,24 @@ class Fleet:
                 perception=perception,
             )
 
+        # Opt-in structured evidence for symbolic perception; one ledger per agent per episode.
+        self.ledgers: dict[str, EvidenceLedger] = {}
+        if record_evidence:
+            if perception_factory is not None:
+                raise ValueError("model adapters record their own evidence")
+            for a, agent in self.agents.items():
+                self.ledgers[a] = EvidenceLedger(a, e.mission_id)
+                agent.perception = RecordingPerception(agent.perception, self.ledgers[a])
+
         for a in self.agents.keys() - set(e.active):
             self.agents[a].health.status = "unavailable"
             self.agents[a].life.change(DroneState.ENDED, 0, "unavailable at reset")
 
-    def advance(self, e: Engine) -> None:
+    def _mission_active(self) -> bool:
+        """Fails closed: a missing assignment record or any status but active forbids travel."""
+        return self.assignments is not None and self.assignments.transitions[-1][1] == "active"
+
+    def advance(self, e: Engine, override: Callable[[str, Move], Move] | None = None) -> None:
         now = e.t * e.config.tick_ms
         before = {a: e.drones[a].position for a in e.active}
         if self.network:
@@ -202,6 +220,15 @@ class Fleet:
             )
             for a in e.active
         }
+        if override is not None:
+            # A caller-supplied simulation policy; it must apply its own safety gate.
+            moves = {a: override(a, move) for a, move in moves.items()}
+        if self.command and (
+            not self._mission_active() or override is not None and not self.allow_external_policy
+        ):
+            # Last check before the engine: no policy or unexpired lease outranks the operator.
+            travel = (Move.NORTH, Move.EAST, Move.SOUTH, Move.WEST, Move.RETURN)
+            moves = {a: Move.HOLD if move in travel else move for a, move in moves.items()}
         e.step({a: int(move) for a, move in moves.items()}, report_hook=self.network is None)
         for a, move in moves.items():
             agent = self.agents[a]

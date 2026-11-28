@@ -6,7 +6,7 @@ import json
 import random
 import sys
 import time
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sized
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Protocol, cast
@@ -20,6 +20,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from agents.shared.domain import Record
 from evaluation.data.release_authorization import Digest
+from evaluation.model1.active_scope import require_trainable_task
 from evaluation.model1.metrics import (
     classification_metrics,
     detection_metrics,
@@ -52,7 +53,9 @@ class TrainingConfig(Record):
 
 
 class TrainingContext(Record):
-    artifact_kind: Literal["synthetic_fixture", "authorized_training"]
+    artifact_kind: Literal[
+        "synthetic_fixture", "authorized_training", "authorized_symbolic_training"
+    ]
     task_id: str = Field(min_length=1)
     release_manifest_sha256: Digest
     authorization_id: str | None = None
@@ -61,7 +64,7 @@ class TrainingContext(Record):
 
     @model_validator(mode="after")
     def gate_real_training(self) -> "TrainingContext":
-        if self.artifact_kind == "authorized_training" and (
+        if self.artifact_kind in {"authorized_training", "authorized_symbolic_training"} and (
             not self.authorization_id
             or self.candidate_manifest_sha256 is None
             or self.training_targets_manifest_sha256 is None
@@ -168,6 +171,37 @@ class SegmentationTask:
 
 
 class DetectionTask:
+    def validate_batch(
+        self, model: nn.Module, features: list[Tensor], targets: list[dict[str, Tensor]]
+    ) -> tuple[list[dict[str, Tensor]], Tensor]:
+        """Faster R-CNN validation: one transform/backbone, separate head modes.
+
+        Evaluation proposals produce metrics; sampled training proposals produce
+        diagnostic losses. BatchNorm stays in eval mode and sampling preserves RNG.
+        """
+        detector: Any = model
+        sizes = [tuple(image.shape[-2:]) for image in features]
+        images, transformed = detector.transform(features, targets)
+        encoded = detector.backbone(images.tensors)
+        if isinstance(encoded, Tensor):
+            encoded = {"0": encoded}
+        proposals, _ = detector.rpn(images, encoded, transformed)
+        predictions, _ = detector.roi_heads(encoded, proposals, images.image_sizes)
+        predictions = detector.transform.postprocess(predictions, images.image_sizes, sizes)
+        devices = [features[0].device.index or 0] if features[0].is_cuda else []
+        flags = detector.rpn.training, detector.roi_heads.training
+        try:
+            with torch.random.fork_rng(devices=devices):
+                detector.rpn.training = detector.roi_heads.training = True
+                proposals, rpn_losses = detector.rpn(images, encoded, transformed)
+                _, roi_losses = detector.roi_heads(
+                    encoded, proposals, images.image_sizes, transformed
+                )
+                loss = torch.stack(list(rpn_losses.values()) + list(roi_losses.values())).sum()
+        finally:
+            detector.rpn.training, detector.roi_heads.training = flags
+        return cast(list[dict[str, Tensor]], predictions), loss
+
     def loss(
         self, model: nn.Module, features: list[Tensor], targets: list[dict[str, Tensor]]
     ) -> Tensor:
@@ -195,13 +229,9 @@ class DetectionTask:
         metrics = detection_metrics(predictions, targets)
         average_precisions = [metrics["map50"]]
         for threshold in range(55, 100, 5):
-            result = detection_metrics(
-                predictions, targets, iou_threshold=threshold / 100
-            )
+            result = detection_metrics(predictions, targets, iou_threshold=threshold / 100)
             average_precisions.append(result["map50"])
-        metrics["map50_95"] = (
-            sum(average_precisions) / len(average_precisions)
-        )
+        metrics["map50_95"] = sum(average_precisions) / len(average_precisions)
         return metrics
 
     def selection_score(self, metrics: Mapping[str, float]) -> tuple[float, Literal["min", "max"]]:
@@ -343,7 +373,9 @@ def fit(
     resume_sha256: str | None = None,
     model_config: dict[str, Any] | None = None,
     stop_after_epoch: int | None = None,
+    deadline: float | None = None,
 ) -> TrainingResult:
+    require_trainable_task(context.task_id)
     _validate_training_sources(train_batches, validation_batches, context)
     from evaluation.model1.checkpoints import restore_checkpoint, save_checkpoint
 
@@ -430,6 +462,7 @@ def fit(
                 loader.generator.set_state(state[label + "_generator"])
         if start_epoch > config.epochs or stale_epochs >= config.early_stopping_patience:
             raise ValueError("checkpoint run has already completed or early-stopped")
+    out_of_time = False
     for epoch in range(start_epoch, config.epochs + 1):
         epoch_started = time.perf_counter()
         stage_timings = {
@@ -529,10 +562,14 @@ def fit(
                     f"loss={float(total_loss.cpu()) / batch_count:.6f} "
                     f"lr={optimizer.param_groups[0]['lr']:.6g} "
                     f"elapsed_s={elapsed:.1f} eta_s={eta:.1f} "
-                    + (f"allocated_MiB={torch.cuda.memory_allocated(device)/2**20:.1f} "
-                       f"reserved_MiB={torch.cuda.memory_reserved(device)/2**20:.1f} "
-                       f"peak_MiB={torch.cuda.max_memory_allocated(device)/2**20:.1f} "
-                       f"utilization={_sample_gpu_utilization()}" if device.type == "cuda" else "device=cpu"),
+                    + (
+                        f"allocated_MiB={torch.cuda.memory_allocated(device) / 2**20:.1f} "
+                        f"reserved_MiB={torch.cuda.memory_reserved(device) / 2**20:.1f} "
+                        f"peak_MiB={torch.cuda.max_memory_allocated(device) / 2**20:.1f} "
+                        f"utilization={_sample_gpu_utilization()}"
+                        if device.type == "cuda"
+                        else "device=cpu"
+                    ),
                     flush=True,
                 )
         if batch_count == 0:
@@ -543,6 +580,7 @@ def fit(
         validation_loss_total: Tensor | None = None
         validation_batch_count = 0
         segmentation_state: StreamingSegmentation | None = None
+        prediction: Any
         with torch.inference_mode():
             for features, targets in _iter_with_wait(
                 validation_batches, on_wait=record_loader_wait
@@ -556,7 +594,9 @@ def fit(
                     with _autocast(device, config):
                         logits = _segmentation_output(model(features))
                     if segmentation_state is None:
-                        segmentation_state = StreamingSegmentation(logits.shape[1], device, adapter.ignore_index)
+                        segmentation_state = StreamingSegmentation(
+                            logits.shape[1], device, adapter.ignore_index
+                        )
                     segmentation_state.update(logits, targets)
                     batch_loss = logits.new_zeros(())
                     del logits
@@ -569,8 +609,7 @@ def fit(
                 elif isinstance(adapter, ClassificationTask):
                     logits, valid = _classification_output(model, features)
                     prediction = PredictionBatch(
-                        logits.detach(),
-                        valid.detach() if valid is not None else None
+                        logits.detach(), valid.detach() if valid is not None else None
                     )
                     selected_logits = logits
                     selected_targets = targets
@@ -580,13 +619,14 @@ def fit(
                         selected_targets = targets[valid]
 
                     if not len(selected_targets):
-                        raise ValueError(
-                            "classification batch has no available sensor evidence"
-                        )
+                        raise ValueError("classification batch has no available sensor evidence")
 
-                    batch_loss = adapter.criterion(
-                        selected_logits, selected_targets
-                    )
+                    batch_loss = adapter.criterion(selected_logits, selected_targets)
+                elif isinstance(adapter, DetectionTask):
+                    with _autocast(device, config):
+                        prediction, batch_loss = adapter.validate_batch(model, features, targets)
+                    prediction = _to_device(prediction, torch.device("cpu"))
+                    targets = _to_device(targets, torch.device("cpu"))
                 else:
                     prediction = adapter.predict(model, features)
                     batch_loss = adapter.loss(model, features, targets)
@@ -600,6 +640,16 @@ def fit(
                     else validation_loss_total + batch_loss.detach().to(torch.float64)
                 )
                 validation_batch_count += 1
+                if config.progress and isinstance(adapter, DetectionTask):
+                    validation_total = (
+                        len(validation_batches) if isinstance(validation_batches, Sized) else "?"
+                    )
+                    print(
+                        f"[validation] epoch={epoch}/{config.epochs} "
+                        f"batch={validation_batch_count}/{validation_total} "
+                        f"loss={float(batch_loss):.6f}",
+                        flush=True,
+                    )
         if not validation_batch_count:
             raise ValueError("validation loader is empty")
         if validation_loss_total is None:
@@ -713,10 +763,17 @@ def fit(
                 )
             if "mae" in metrics:
                 maermse = f" val_mae={metrics['mae']:.6f} val_rmse={metrics['rmse']:.6f}"
+            if "map50" in metrics:
+                maermse = " " + " ".join(
+                    f"{key}={metrics[key]:.6f}"
+                    for key in ("map50", "map50_95", "precision", "recall")
+                )
             if "macro_iou" in metrics:
-                maermse = (f" val_mIoU={metrics['macro_iou']:.6f} "
-                           f"val_mDice={metrics['macro_dice']:.6f} "
-                           f"pixel_accuracy={metrics['pixel_accuracy']:.6f}")
+                maermse = (
+                    f" val_mIoU={metrics['macro_iou']:.6f} "
+                    f"val_mDice={metrics['macro_dice']:.6f} "
+                    f"pixel_accuracy={metrics['pixel_accuracy']:.6f}"
+                )
             print(
                 f"[epoch {epoch}/{config.epochs}] "
                 f"train_loss={history[-1].train_loss:.6f} "
@@ -724,7 +781,7 @@ def fit(
                 f"{maermse} "
                 f"epoch_s={epoch_duration:.2f} "
                 f"eta_s={elapsed_remaining:.1f}"
-                f" total_s={time.perf_counter()-run_started:.2f} "
+                f" total_s={time.perf_counter() - run_started:.2f} "
                 f"best_epoch={best_epoch} best_score={best_score:.6f} "
                 f"stale={stale_epochs}/{config.early_stopping_patience} "
                 f"checkpoint={checkpoint_path}"
@@ -736,8 +793,19 @@ def fit(
                 + " ".join(f"{name}={seconds:.3f}s" for name, seconds in stage_timings.items()),
                 flush=True,
             )
+        if deadline is not None:
+            # Stop only between epochs, after the checkpoint above has been written.
+            remaining = deadline - time.time()
+            out_of_time = remaining < 1.15 * (time.perf_counter() - epoch_started)
+            if config.progress:
+                print(
+                    f"[deadline] remaining_s={remaining:.0f} "
+                    f"run_elapsed_s={time.perf_counter() - run_started:.0f}",
+                    flush=True,
+                )
         if (
             stale_epochs >= config.early_stopping_patience
+            or out_of_time
             or stop_after_epoch is not None
             and epoch >= stop_after_epoch
         ):
@@ -757,16 +825,33 @@ def fit(
         scheduler.load_state_dict(best_scheduler_state)
     scaler.load_state_dict(best_scaler_state)
     if config.progress:
-        reason = ("early_stopping" if stale_epochs >= config.early_stopping_patience
-                  else "requested_epoch_boundary" if stop_after_epoch is not None
-                  else "maximum_epochs")
-        best_path = config.checkpoint_root / (
-            "synthetic" if context.artifact_kind == "synthetic_fixture" else "authorized-training"
-        ) / f"epoch-{best_epoch:04d}.pt"
-        print(f"[final] reason={reason} best_epoch={best_epoch} best_score={best_score:.6f} "
-              f"duration_s={time.perf_counter()-run_started:.2f} "
-              f"best_checkpoint={best_path if best_path.is_file() else 'not_saved'} "
-              f"report_root={config.profile_output_root}", flush=True)
+        reason = (
+            "early_stopping"
+            if stale_epochs >= config.early_stopping_patience
+            else "deadline"
+            if out_of_time
+            else "requested_epoch_boundary"
+            if stop_after_epoch is not None
+            else "maximum_epochs"
+        )
+        best_path = (
+            config.checkpoint_root
+            / (
+                "synthetic"
+                if context.artifact_kind == "synthetic_fixture"
+                else "authorized-symbolic-training"
+                if context.artifact_kind == "authorized_symbolic_training"
+                else "authorized-training"
+            )
+            / f"epoch-{best_epoch:04d}.pt"
+        )
+        print(
+            f"[final] reason={reason} best_epoch={best_epoch} best_score={best_score:.6f} "
+            f"duration_s={time.perf_counter() - run_started:.2f} "
+            f"best_checkpoint={best_path if best_path.is_file() else 'not_saved'} "
+            f"report_root={config.profile_output_root}",
+            flush=True,
+        )
     return TrainingResult(tuple(history), best_epoch, best_score, best_global_step)
 
 
@@ -889,6 +974,40 @@ def _validate_training_sources(
         ):
             raise ValueError("synthetic context requires matching synthetic fixture loaders")
         return
+    from evaluation.model1.symbolic_dataset import (
+        AuthorizedSymbolicDataset,
+        digest,
+    )
+
+    if context.artifact_kind == "authorized_symbolic_training":
+        if (
+            not isinstance(training_data, AuthorizedSymbolicDataset)
+            or not isinstance(validation_data, AuthorizedSymbolicDataset)
+            or training_data.split != "train"
+            or validation_data.split != "validation"
+        ):
+            raise ValueError("Symbolic context requires matching symbolic partitions")
+
+        for dataset in (training_data, validation_data):
+            fresh = AuthorizedSymbolicDataset(dataset.split)
+
+            if (
+                dataset.manifest_sha256 != fresh.manifest_sha256
+                or dataset.approval_sha256 != fresh.approval_sha256
+                or dataset.config != fresh.config
+                or dataset.release != fresh.release
+                or not torch.equal(dataset.values, fresh.values)
+                or not torch.equal(dataset.available, fresh.available)
+                or not torch.equal(dataset.targets, fresh.targets)
+                or context.task_id != "offline-environment-classification"
+                or context.release_manifest_sha256 != fresh.manifest_sha256
+                or context.authorization_id != fresh.approval_sha256
+                or context.candidate_manifest_sha256 != digest(fresh.release / "provenance.json")
+                or context.training_targets_manifest_sha256 != digest(fresh.release / "targets.npy")
+            ):
+                raise ValueError("Symbolic authorization binding mismatch")
+        return
+
     from evaluation.model1.data import AuthorizedFusionDataset, AuthorizedTaskDataset
 
     if (
@@ -919,39 +1038,25 @@ def _sample_gpu_utilization() -> str:
 
     now = time.monotonic()
 
-    previous = getattr(
-        _sample_gpu_utilization,
-        "_cached",
-        (0.0, "unavailable")
-    )
+    previous = getattr(_sample_gpu_utilization, "_cached", (0.0, "unavailable"))
 
     if now - previous[0] < 5.0:
         return previous[1]
 
     try:
         result = subprocess.check_output(
-            [
-                "nvidia-smi",
-                "--query-gpu=utilization.gpu",
-                "--format=csv,noheader,nounits"
-            ],
+            ["nvidia-smi", "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],
             text=True,
-            timeout=2
+            timeout=2,
         )
 
         value = result.strip().splitlines()[0] + "%"
 
-    except (
-        OSError,
-        subprocess.SubprocessError,
-        IndexError
-    ):
+    except (OSError, subprocess.SubprocessError, IndexError):
         value = "unavailable"
 
     setattr(  # noqa: B010
-        _sample_gpu_utilization,
-        "_cached",
-        (now, value)
+        _sample_gpu_utilization, "_cached", (now, value)
     )
 
     return value

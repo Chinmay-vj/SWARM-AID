@@ -29,6 +29,25 @@ ReadinessStatus = Literal[
 ]
 
 
+class WiSARDProjectPermission(Record):
+    """Owner attestation; the underlying publisher correspondence stays external."""
+
+    project: Literal["SWARM-AID"]
+    owner_identity: Id
+    external_reference: Id
+    confirmed_at: AwareDatetime
+    publisher_permission_confirmed: Literal[True]
+    imagery_and_annotations_covered: Literal[True]
+    scope: Literal["local_noncommercial_training_and_evaluation"]
+    general_dataset_licence_verified: Literal[False] = False
+
+    @model_validator(mode="after")
+    def confirmation_time(self) -> Self:
+        if self.confirmed_at > datetime.now(UTC):
+            raise ValueError("permission confirmation cannot be in the future")
+        return self
+
+
 class AuthorizationRecord(Record):
     schema_version: Literal["phase10i-authorization-1.0", "phase10i-authorization-1.1"]
     authorization_id: Id
@@ -52,9 +71,20 @@ class AuthorizationRecord(Record):
     decision: Literal["APPROVE", "REJECT"]
     decision_rationale: Annotated[str, Field(min_length=1)]
     restrictions: tuple[Annotated[str, Field(min_length=1)], ...]
+    wisard_project_permission: WiSARDProjectPermission | None = None
 
     @model_validator(mode="after")
     def approval_is_explicit_and_complete(self) -> Self:
+        permission = self.wisard_project_permission
+        if permission is not None and (
+            self.dataset_id != "wisard"
+            or permission.owner_identity != self.authorizing_owner_identity
+            or self.schema_version != "phase10i-authorization-1.1"
+            or set(self.approved_usage_scopes) - {"local_training", "local_evaluation", "retention"}
+            or self.cloud_processing_decision != "not_authorized"
+            or self.redistribution_decision != "not_authorized"
+        ):
+            raise ValueError("project permission is restricted to owner-confirmed local WiSARD use")
         if self.schema_version == "phase10i-authorization-1.0":
             if self.training_targets_manifest_sha256 is not None:
                 raise ValueError("Phase 10I authorization cannot bind a target manifest")
@@ -226,8 +256,7 @@ def require_training_authorization(
         raise ValueError("candidate records checksum mismatch")
 
     if (
-        dataset.licence_status != "verified"
-        or dataset.privacy_status != "approved"
+        dataset.privacy_status != "approved"
         or dataset.verification != "verified"
     ):
         raise ValueError("dataset governance review incomplete")
@@ -253,6 +282,10 @@ def require_training_authorization(
     if len(exact) != 1:
         raise ValueError("multiple matching authorization records are ambiguous")
     authorization = exact[0]
+    if dataset.licence_status != "verified" and not (
+        dataset.dataset_id == "wisard" and authorization.wisard_project_permission is not None
+    ):
+        raise ValueError("dataset licence or WiSARD project-specific permission required")
     if training_targets_manifest is not None:
         if (
             authorization.schema_version != "phase10i-authorization-1.1"

@@ -53,7 +53,9 @@ def build_container(settings: BackendSettings, engine: Engine | None = None) -> 
         auth=auth_service,
         runtime=runtime,
         hub=hub,
-        missions=MissionService(db, runtime, auth_service),
+        missions=MissionService(
+            db, runtime, auth_service, development=settings.environment == "development"
+        ),
         queries=QueryService(db, runtime),
         oversight=OversightService(db, runtime),
         exports=ExportService(db),

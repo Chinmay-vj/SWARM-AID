@@ -57,7 +57,10 @@ def save_checkpoint(
         raise ValueError("invalid checkpoint filename or training position")
     if not math.isfinite(best_validation_metric):
         raise ValueError("best validation metric must be finite")
-    if context.artifact_kind == "authorized_training" and not context.authorization_id:
+    if (
+        context.artifact_kind in {"authorized_training", "authorized_symbolic_training"}
+        and not context.authorization_id
+    ):
         raise ValueError("real checkpoint requires explicit task authorization")
     destination_dir = root.resolve() / _artifact_folder(context)
     destination_dir.mkdir(parents=True, exist_ok=True)
@@ -220,7 +223,13 @@ def _safe_filename(value: str) -> bool:
 
 
 def _artifact_folder(context: TrainingContext) -> str:
-    return "synthetic" if context.artifact_kind == "synthetic_fixture" else "authorized-training"
+    return (
+        "synthetic"
+        if context.artifact_kind == "synthetic_fixture"
+        else "authorized-symbolic-training"
+        if context.artifact_kind == "authorized_symbolic_training"
+        else "authorized-training"
+    )
 
 
 def _environment() -> dict[str, str | None]:

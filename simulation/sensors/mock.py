@@ -112,3 +112,34 @@ def sense(
         battery_fraction=battery,
     )
     return Packet(frame=frame, readings=tuple(readings)), seen, false, misses, footprint
+
+
+def fixture_packet(packet: Packet, modalities: tuple[str, ...]) -> Packet:
+    """Synthetic media-carrier packet: one evidence reference per modality, no symbolic content.
+
+    Used to exercise model adapters. The references carry no observation of the simulated world.
+    """
+    own = packet.frame
+    readings = tuple(
+        Reading(
+            evidence=Evidence(
+                evidence_id=(uid := uuid5(NAMESPACE_OID, f"fixture/{own.agent_id}/{own.tick_ms}/{m}")),
+                origin=own.agent_id,
+                captured_ms=own.tick_ms,
+                modality=m,
+                artifact_key=uid.hex,
+            ),
+            value="fixture",
+            cell=None,
+            confidence=1.0,
+        )
+        for m in modalities
+    )
+    frame = SensorFrame(
+        agent_id=own.agent_id,
+        tick_ms=own.tick_ms,
+        samples=tuple(r.evidence for r in readings),
+        cell=own.cell or Cell(x=0, y=0),
+        battery_fraction=own.battery_fraction,
+    )
+    return Packet(frame=frame, readings=readings)

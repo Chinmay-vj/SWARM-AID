@@ -28,7 +28,7 @@ param(
     [switch]$FrontendOnly,
     [string]$Scenario = "flood_basic",
     [int]$Agents = 6,
-    [int]$Seed = 42,
+    [int]$Seed = -1,
     [int]$ReadyTimeoutSeconds = 60
 )
 
@@ -107,6 +107,7 @@ Push-Location $root
 try {
     # ---- headless profile -----------------------------------------------------------------
     if ($Headless) {
+        if ($Seed -lt 0) { Fail "Pass -Seed explicitly (development seeds are 12000-12999)." }
         & $python -m orchestration check --profile headless
         if ($LASTEXITCODE -ne 0) { Fail "Configuration check failed (see above)." }
         & $python -m orchestration run --scenario $Scenario --agents $Agents --seed $Seed --output (Join-Path $root "runs\phase9\headless")

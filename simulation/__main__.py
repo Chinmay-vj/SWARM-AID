@@ -40,7 +40,12 @@ def main() -> None:
         if args.command_agent
         else None
     )
-    data = load(args.scenario).model_dump()
+    scenario = load(args.scenario)
+    if args.seed is None and "seed" not in scenario.model_fields_set:
+        parser.error(
+            "pass --seed (development seeds are 12000-12999); this scenario does not set one"
+        )
+    data = scenario.model_dump()
     for key in ("agents", "seed"):
         if getattr(args, key) is not None:
             data[key] = getattr(args, key)

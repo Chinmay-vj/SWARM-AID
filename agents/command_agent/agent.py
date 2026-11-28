@@ -179,6 +179,11 @@ class CommandAgent:
         if memory:
             raise ValueError("restore existing memory from a mission-scoped checkpoint")
         self.findings: MutableMapping[UUID, ReportedFinding] = memory if memory is not None else {}
+        # Lookups over the agent's own findings, which are only ever added. An injected mapping
+        # may change on its own, so it is scanned instead.
+        self._indexed = memory is None
+        self._by_message: dict[UUID, ReportedFinding] = {}
+        self._by_cell: dict[Cell, list[ReportedFinding]] = {}
         self.tasks: dict[UUID, tuple[int, str, str]] = {}
         self.evidence_refs: dict[UUID, Evidence] = {}
         self.source_status: dict[str, tuple[int, str]] = {}
@@ -408,6 +413,10 @@ class CommandAgent:
             return None
         report = ReportedFinding(message_id=msg.message_id, finding=finding)
         self.findings[obs.observation_id] = report
+        if self._indexed:
+            self._by_message[report.message_id] = report
+            if obs.cell is not None:
+                self._by_cell.setdefault(obs.cell, []).append(report)
         self.event(now, "admitted", msg.message_id)
         if obs.cell is not None:
             layer = self.world.setdefault(obs.cell, {})
@@ -433,7 +442,11 @@ class CommandAgent:
         if self.settings.mode != "fusion":
             key += (obs.observation_id,)
         previous = self.incidents.get(self.groups[key]) if key in self.groups else None
-        by_id = {r.message_id: r for r in self.findings.values()}
+        by_id = (
+            self._by_message
+            if self._indexed
+            else {r.message_id: r for r in self.findings.values()}
+        )
         held = self.held.get(previous.incident.incident_id, ()) if previous else ()
         reports = (
             tuple(
@@ -480,9 +493,14 @@ class CommandAgent:
                 or rec.expires_ms <= now
             ):
                 raise ValueError("unsupported recommendation")
+            same_cell = (
+                self._by_cell.get(obs.cell, ())
+                if self._indexed and obs.cell is not None
+                else self.findings.values()
+            )
             context = tuple(
                 r.finding
-                for r in self.findings.values()
+                for r in same_cell
                 if obs.cell is not None
                 and r.finding.observation.cell == obs.cell
                 and now - r.finding.observation.observed_ms < self.settings.freshness_ms

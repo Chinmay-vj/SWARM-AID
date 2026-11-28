@@ -1,0 +1,6 @@
+{
+  "status": "provisional; not verified on an RTX 2060",
+  "device": "auto",
+  "precision": "fp16",
+  "max_resident": 2
+}

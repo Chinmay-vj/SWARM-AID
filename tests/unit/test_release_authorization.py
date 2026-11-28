@@ -369,3 +369,36 @@ def test_training_loader_rejects_cross_split_group_assignments(tmp_path: Path) -
                 authorization_records=(auth,),
             )
         )
+
+
+def test_external_permission_is_wisard_only(tmp_path: Path) -> None:
+    from evaluation.data.release_authorization import WiSARDProjectPermission
+
+    manifest = _manifest(tmp_path)
+    _, checksum = _candidate_manifest(tmp_path)
+    record = _authorization(manifest, checksum)
+    permission = WiSARDProjectPermission(
+        project="SWARM-AID", owner_identity=record.authorizing_owner_identity,
+        external_reference="Externally held publisher reply; synthetic fixture",
+        confirmed_at=datetime.now(UTC), publisher_permission_confirmed=True,
+        imagery_and_annotations_covered=True,
+        scope="local_noncommercial_training_and_evaluation")
+    payload = record.model_dump()
+    payload.update(schema_version="phase10i-authorization-1.1",
+                   training_targets_manifest_sha256="a" * 64,
+                   wisard_project_permission=permission.model_dump(),
+                   cloud_processing_decision="not_authorized",
+                   redistribution_decision="not_authorized")
+    with pytest.raises(ValidationError, match="restricted"):
+        AuthorizationRecord.model_validate(payload)
+    payload["dataset_id"] = "wisard"
+    accepted = AuthorizationRecord.model_validate(payload)
+    assert accepted.wisard_project_permission is not None
+    assert not accepted.wisard_project_permission.general_dataset_licence_verified
+    payload["approved_usage_scopes"] = ["local_training", "cloud_training"]
+    with pytest.raises(ValidationError, match="restricted"):
+        AuthorizationRecord.model_validate(payload)
+    payload["approved_usage_scopes"] = ["local_training"]
+    payload["authorizing_owner_identity"] = "different-owner"
+    with pytest.raises(ValidationError, match="restricted"):
+        AuthorizationRecord.model_validate(payload)

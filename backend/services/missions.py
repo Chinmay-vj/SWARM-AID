@@ -40,7 +40,15 @@ def mission_out(mission: m.Mission, runtime: m.MissionRuntime | None) -> Mission
 
 
 class MissionService:
-    def __init__(self, db: Database, runtime: RuntimeManager, auth: AuthService) -> None:
+    def __init__(
+        self,
+        db: Database,
+        runtime: RuntimeManager,
+        auth: AuthService,
+        *,
+        development: bool = False,
+    ) -> None:
+        self.development = development
         self.db = db
         self.runtime = runtime
         self.auth = auth
@@ -48,6 +56,15 @@ class MissionService:
     def create(self, principal: Principal, body: MissionCreate) -> MissionOut:
         if not principal.can_create_missions():
             raise Forbidden("mission creation requires a coordinator or administrator account")
+        if self.development:
+            # Never fall back to the historical default seed or touch the final-evaluation range.
+            if "seed" not in body.config.model_fields_set:
+                raise Unprocessable(
+                    "development missions need an explicit seed (12000-12999)",
+                    code="seed_required",
+                )
+            if 900000 <= body.config.seed < 900100:
+                raise Unprocessable("seed is reserved for final evaluation", code="seed_reserved")
         try:
             scenario = body.config.validated()
         except ValueError as exc:
